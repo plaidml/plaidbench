@@ -1,0 +1,2 @@
+h5py==2.7.0
+plaidml-keras>=0.1.0a5
