@@ -131,15 +131,14 @@ def main():
         module = os.path.join(this_dir, 'networks', '%s.py' % args.module)
         globals = {}
         execfile(module, globals)
-
-        print('Upscaling the data')
         x_train = globals['scale_dataset'](x_train)
 
-        print('Loading the model')
-        compile_stop_watch.start()
         model = globals['build_model']()
+        print("\nModel loaded.")
 
         # Prep the model and run an initial un-timed batch
+        print("Compiling and running initial batch, batch_size={}".format(batch_size))
+        compile_stop_watch.start()
         optimizer = 'sgd'
         if args.module[:3] == 'vgg':
             from keras.optimizers import SGD
@@ -151,7 +150,6 @@ def main():
             # training
             x = x_train[:((truncation_size)*batch_size)]
             y = y_train[:((truncation_size)*batch_size)]
-            print("Compiling / Running initial batch, batch_size={}".format(batch_size))
             model.train_on_batch(x_train[0:batch_size], y_train[0:batch_size])
             compile_stop_watch.stop()
             for i in range(args.epochs):
@@ -166,7 +164,6 @@ def main():
             output.contents = np.array(output.contents)
         else:
             # inference
-            print('Compiling / Running initial batch, batch_size={}'.format(batch_size))
             y = model.predict(x=x_train, batch_size=batch_size)
             compile_stop_watch.stop()
             output.contents = y
