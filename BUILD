@@ -14,7 +14,10 @@ pkg_tar(
 py_library(
     name = "plaidbench",
     srcs = ["plaidbench.py"],
-    data = glob(["networks/**"]),
+    data = glob([
+        "cifar16.npy",
+        "networks/**"]
+    ),
 )
 
 py_binary(
@@ -22,7 +25,10 @@ py_binary(
     srcs = [
         "plaidbench.py",
     ],
-    data = glob(["networks/**"]),
+    data = glob([
+        "cifar16.npy",
+        "networks/**",
+    ]),
     main = "plaidbench.py",
     deps = [
         "@vertexai_plaidml//plaidml/keras",

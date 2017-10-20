@@ -101,22 +101,21 @@ def main():
     truncation_size = 64 / batch_size
     epoch_size = truncation_size * batch_size
 
-    # Load the dataset and scrap everything but the training images
-    # cifar10 data is too small, but we can upscale
-    from keras.datasets import cifar10
-    print('Loading the data')
-    (x_train, y_train_cats), (x_test, y_test_cats) = cifar10.load_data()
-
     if args.train:
+        # Load the dataset and scrap everything but the training images
+        # cifar10 data is too small, but we can upscale
+        from keras.datasets import cifar10
+        print('Loading the data')
+        (x_train, y_train_cats), (x_test, y_test_cats) = cifar10.load_data()
         from keras.utils.np_utils import to_categorical
         x_train = x_train[:epoch_size]
         y_train_cats = y_train_cats[:epoch_size]
         y_train = to_categorical(y_train_cats, num_classes=1000)
     else:
-        x_train = x_train[:batch_size]
+        this_dir = os.path.dirname(os.path.abspath(__file__))
+        cifar_path = os.path.join(this_dir, 'cifar16.npy')
+        x_train = np.load(cifar_path).repeat(1 + batch_size/16, axis=0)[:batch_size]
         y_train_cats = None
-    x_test = None
-    y_test_cats = None
 
     stop_watch = StopWatch(args.callgrind)
     compile_stop_watch = StopWatch(args.callgrind)
