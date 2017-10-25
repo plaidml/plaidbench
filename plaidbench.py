@@ -73,6 +73,7 @@ def has_plaid():
 SUPPORTED_NETWORKS = ['inception_v3', 'mobilenet', 'resnet50', 'vgg16', 'vgg19', 'xception']
 
 def main():
+    exit_status = 0
     parser = argparse.ArgumentParser()
     plaidargs = parser.add_mutually_exclusive_group()
     plaidargs.add_argument('--plaid', action='store_true')
@@ -188,6 +189,7 @@ def main():
     except Exception as ex:
         print(ex)
         data['exception'] = str(ex)
+        exit_status = -1
         if args.print_stacktraces:
             raise
         print('Set --print-stacktraces to see the entire traceback')
@@ -202,7 +204,7 @@ def main():
             json.dump(data, out)
         if isinstance(output.contents, np.ndarray):
             np.save(os.path.join(args.result, 'result.npy'), output.contents)
-
+    sys.exit(exit_status)
 
 if __name__ == '__main__':
     main()
