@@ -70,7 +70,7 @@ def has_plaid():
     except ImportError:
         return False
 
-SUPPORTED_NETWORKS = ['inception_v3', 'mobilenet', 'resnet50', 'vgg16', 'vgg19', 'xception']
+SUPPORTED_NETWORKS = ['inception_v3', 'mobilenet', 'resnet50', 'vgg16', 'vgg19', 'xception', 'all']
 
 def main():
     exit_status = 0
@@ -87,7 +87,6 @@ def main():
     parser.add_argument('--batch-size', type=int, default=1)
     parser.add_argument('--train', action='store_true')
     parser.add_argument('--print-stacktraces', action='store_true')
-    parser.add_argument('--all', action='store_true')
     parser.add_argument('module', choices=SUPPORTED_NETWORKS)
     args = parser.parse_args()
 
@@ -114,6 +113,10 @@ def main():
     	raise ValueError('The number of examples must be divisible by the number of epochs.')
     if epoch_size%batch_size != 0:
 		raise ValueError('The number of examples per epoch is not divisble by the batch size.')
+    
+    if args.module == 'all':
+		print('all')
+		examples = 256
 
     if args.train:
         # Load the dataset and scrap everything but the training images
