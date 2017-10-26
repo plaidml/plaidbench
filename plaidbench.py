@@ -16,6 +16,8 @@
 
 from __future__ import print_function
 
+from six import exec_
+
 import argparse
 import errno
 import json
@@ -103,7 +105,7 @@ def main():
     batch_size = int(args.batch_size)
     epochs = args.epochs
     examples = args.examples
-    epoch_size = examples / epochs
+    epoch_size = examples // epochs
 
     if epochs > examples:
     	raise ValueError('The number of epochs must be less than the number of examples.')
@@ -142,7 +144,8 @@ def main():
         this_dir = os.path.dirname(os.path.abspath(__file__))
         module = os.path.join(this_dir, 'networks', '%s.py' % args.module)
         globals = {}
-        execfile(module, globals)
+        exec_(open(module).read(), globals)
+
         x_train = globals['scale_dataset'](x_train)
 
         model = globals['build_model']()
@@ -180,11 +183,13 @@ def main():
             compile_stop_watch.stop()
             output.contents = y
             print('Warmup')
-            for i in range(32/batch_size + 1):
+ 
+            for i in range(32//batch_size + 1):
                 y = model.predict(x=x_train, batch_size=batch_size)
             # Now start the clock and run 100 batches
             print('Doing the main timing')
-            for i in range(examples/batch_size):
+
+            for i in range(examples//batch_size):
                 stop_watch.start()
                 y = model.predict(x=x_train, batch_size=batch_size)
                 stop_watch.stop()
