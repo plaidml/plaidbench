@@ -86,8 +86,8 @@ def main():
     parser.add_argument('--train', action='store_true')
     parser.add_argument('--print-stacktraces', action='store_true')
     parser.add_argument('--epochs', type=int, default=8)
-    parser.add_argument('-n', '--examples', type=int, default=1024)
     parser.add_argument('--all', action='store_true')
+    parser.add_argument('-n', '--examples', type=int, default=1024)
     parser.add_argument('module', choices=SUPPORTED_NETWORKS)
     args = parser.parse_args()
 
@@ -100,22 +100,20 @@ def main():
     if args.fp16:
         from keras.backend.common import set_floatx
         set_floatx('float16')
-        
+
     batch_size = int(args.batch_size)
-    examples = args.examples
     epochs = args.epochs
+    examples = args.examples
     epoch_size = examples / epochs
 
-    if args.all:
-    	examples = 256
-	if examples % epochs != 0:
-		print('examples % epochs != 0, resetting values to default')
-		examples = 1024
-		epochs = 8
+    if epochs > examples:
+    	print('epoch > examples; restting both values to default')
+    if examples % batch_size != 0:
+    	print('examples % batch-size != 0; resetting both values to default')
+    	examples = 1024
+    	batch_size = 1
 	if epoch_size % batch_size != 0:
-		print('epoch_size % epochs != 0, setting batch size to 1')
-		batch_size = 1 
-	
+		print('epoch_size % batch_size != 0; resetting batch_size to 1')
 
     if args.train:
         # Load the dataset and scrap everything but the training images
@@ -160,14 +158,19 @@ def main():
             optimizer = SGD(lr=0.0001)
         model.compile(optimizer=optimizer, loss='categorical_crossentropy',
                       metrics=['accuracy'])
+        
+        print('examples   : ' + str(examples))
+        print('epochs     : ' + str(epochs))
+        print('epoch_size : ' + str(epoch_size))
+        print('batch_size : ' + str(batch_size))
 
         if args.train:
             # training
-            x = x_train[:(batch_size)]
-            y = y_train[:(batch_size)]
+            x = x_train[:epoch_size]
+            y = y_train[:epoch_size]
             model.train_on_batch(x_train[0:batch_size], y_train[0:batch_size])
             compile_stop_watch.stop()
-            for i in range(epochs):
+            for i in range(args.epochs):
                 if i == 1:
                     print('Doing the main timing')
                 stop_watch.start()
