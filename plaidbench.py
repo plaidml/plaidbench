@@ -107,16 +107,16 @@ def main():
 
     if epochs > examples:
     	raise ValueError('The number of epochs must be less than the number of examples.')
-	if batch_size > epoch_size:
-		raise ValueError('The number of examples per epoch must be less than the batch size.')
+    if batch_size > epoch_size:
+        raise ValueError('The number of examples per epoch must be less than the batch size.')
     if examples%epochs != 0:
-    	raise ValueError('The number of examples must be divisible by the number of epochs.')
+        raise ValueError('The number of examples must be divisible by the number of epochs.')
     if epoch_size%batch_size != 0:
-		raise ValueError('The number of examples per epoch is not divisble by the batch size.')
+        raise ValueError('The number of examples per epoch is not divisble by the batch size.')
     
     if args.module == 'all':
-		print('all')
-		examples = 256
+        print('all')
+        examples = 256
 
     if args.train:
         # Load the dataset and scrap everything but the training images
