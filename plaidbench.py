@@ -158,11 +158,6 @@ def main():
             optimizer = SGD(lr=0.0001)
         model.compile(optimizer=optimizer, loss='categorical_crossentropy',
                       metrics=['accuracy'])
-        
-        print('examples   : ' + str(examples))
-        print('epochs     : ' + str(epochs))
-        print('epoch_size : ' + str(epoch_size))
-        print('batch_size : ' + str(batch_size))
 
         if args.train:
             # training
