@@ -70,7 +70,7 @@ def has_plaid():
     except ImportError:
         return False
 
-SUPPORTED_NETWORKS = ['inception_v3', 'mobilenet', 'resnet50', 'vgg16', 'vgg19', 'xception', 'all']
+SUPPORTED_NETWORKS = ['inception_v3', 'mobilenet', 'resnet50', 'vgg16', 'vgg19', 'xception']
 
 def main():
     exit_status = 0
@@ -113,10 +113,6 @@ def main():
         raise ValueError('The number of examples must be divisible by the number of epochs.')
     if epoch_size%batch_size != 0:
         raise ValueError('The number of examples per epoch is not divisble by the batch size.')
-    
-    if args.module == 'all':
-        print('all')
-        examples = 256
 
     if args.train:
         # Load the dataset and scrap everything but the training images
