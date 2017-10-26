@@ -82,12 +82,12 @@ def main():
     parser.add_argument('-v', '--verbose', type=int, nargs='?', const=3)
     parser.add_argument('--result', default='/tmp/plaidbench_results')
     parser.add_argument('--callgrind', action='store_true')
+    parser.add_argument('-n', '--examples', type=int, default=1024)
+    parser.add_argument('--epochs', type=int, default=8)
     parser.add_argument('--batch-size', type=int, default=1)
     parser.add_argument('--train', action='store_true')
     parser.add_argument('--print-stacktraces', action='store_true')
-    parser.add_argument('--epochs', type=int, default=8)
     parser.add_argument('--all', action='store_true')
-    parser.add_argument('-n', '--examples', type=int, default=1024)
     parser.add_argument('module', choices=SUPPORTED_NETWORKS)
     args = parser.parse_args()
 
@@ -107,13 +107,13 @@ def main():
     epoch_size = examples / epochs
 
     if epochs > examples:
-    	print('epoch > examples; restting both values to default')
-    if examples % batch_size != 0:
-    	print('examples % batch-size != 0; resetting both values to default')
-    	examples = 1024
-    	batch_size = 1
-	if epoch_size % batch_size != 0:
-		print('epoch_size % batch_size != 0; resetting batch_size to 1')
+    	raise ValueError('The number of epochs must be less than the number of examples.')
+	if batch_size > epoch_size:
+		raise ValueError('The number of examples per epoch must be less than the batch size.')
+    if examples%epochs != 0:
+    	raise ValueError('The number of examples must be divisible by the number of epochs.')
+    if epoch_size%batch_size != 0:
+		raise ValueError('The number of examples per epoch is not divisble by the batch size.')
 
     if args.train:
         # Load the dataset and scrap everything but the training images
