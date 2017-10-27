@@ -1,6 +1,11 @@
 language: python
+os:
+  - linux
+  # - osx ren-eable once before install is right for osx
 python:
   - "2.7"
+  - "3.5"
+  - "3.6"
 
 before_install:
   - echo "deb [arch=amd64] http://storage.googleapis.com/bazel-apt stable jdk1.8" | sudo tee /etc/apt/sources.list.d/bazel.list
