@@ -260,7 +260,7 @@ def main():
 
             # Prep the model and run an initial un-timed batch
             run_intial(batch_size, compile_stop_watch, args.module, model)
-            '''
+            
             # training run
             if args.train:
                 value_check(examples, epochs, batch_size)
@@ -268,7 +268,7 @@ def main():
             # inference run
             else:
                 inference(args.module, model, batch_size, compile_stop_watch, output, x_train, examples, stop_watch)
-            '''
+            
             # Stop stopwatches
             stop_watch.stop()
             compile_stop_watch.stop()
