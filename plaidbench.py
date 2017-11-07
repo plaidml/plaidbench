@@ -61,8 +61,8 @@ class StopWatch(object):
 
 class Output(object):
     def __init__(self):
-      self.contents = None
-      self.precision = 'untested'
+        self.contents = None
+        self.precision = 'untested'
 
 
 def printf(*args, **kwargs):
