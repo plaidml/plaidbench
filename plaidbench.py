@@ -129,7 +129,6 @@ def inference(network, model, batch_size, compile_stop_watch, output, x_train,
     compile_stop_watch.stop()
     
     output.contents = y
-    printf('Warmup')
 
     for i in range(32 // batch_size + 1):
         y = model.predict(x=x_train, batch_size=batch_size)
@@ -138,7 +137,6 @@ def inference(network, model, batch_size, compile_stop_watch, output, x_train,
         stop_watch.start()
         y = model.predict(x=x_train, batch_size=batch_size)
         stop_watch.stop()
-        time.sleep(.025 * random.random())
 
     stop_watch.stop()
 
