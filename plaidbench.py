@@ -89,8 +89,13 @@ def value_check(examples, epochs, batch_size):
         raise ValueError('The number of examples per epoch is not divisble by the batch size.')
 
 
-def train(x_train, y_train, epoch_size, model, batch_size, compile_stop_watch, epochs, stop_watch, output):
+def train(x_train, y_train, epoch_size, model, batch_size, compile_stop_watch, 
+    epochs, stop_watch, output, network):
     # Training
+    compile_stop_watch.start_outer()
+    stop_watch.start_outer()
+    
+    run_intial(batch_size, compile_stop_watch, network, model)
     x = x_train[:epoch_size]
     y = y_train[:epoch_size]
     model.train_on_batch(x_train[0:batch_size], y_train[0:batch_size])
@@ -109,12 +114,20 @@ def train(x_train, y_train, epoch_size, model, batch_size, compile_stop_watch, e
             output.contents = [history.history['loss']]
     output.contents = np.array(output.contents)
 
+    stop_watch.stop()
 
-def inference(network, model, batch_size, compile_stop_watch, output, x_train, examples, stop_watch):
+
+def inference(network, model, batch_size, compile_stop_watch, output, x_train, 
+    examples, stop_watch):
     # Inference
+    compile_stop_watch.start_outer()
+    stop_watch.start_outer()
+    
+    run_intial(batch_size, compile_stop_watch, network, model);
     y = model.predict(x=x_train, batch_size=batch_size)
     
     compile_stop_watch.stop()
+    
     output.contents = y
     printf('Warmup')
 
@@ -126,6 +139,8 @@ def inference(network, model, batch_size, compile_stop_watch, output, x_train, e
         y = model.predict(x=x_train, batch_size=batch_size)
         stop_watch.stop()
         time.sleep(.025 * random.random())
+
+    stop_watch.stop()
 
 
 def setup(train, epoch_size, batch_size):
@@ -162,7 +177,6 @@ def load_model(module, x_train):
 
 def run_intial(batch_size, compile_stop_watch, network, model):
     print("Compiling and running initial batch, batch_size={}".format(batch_size))
-    compile_stop_watch.start()
     optimizer = 'sgd'
     if network[:3] == 'vgg':
         from keras.optimizers import SGD
@@ -250,28 +264,19 @@ def main():
         try:
             # Setup
             x_train, y_train = setup(args.train, epoch_size, batch_size)
-        
-            # Start stopwatches
-            stop_watch.start_outer()
-            compile_stop_watch.start_outer()
 
             # Loading the model
             module, x_train, model = load_model(args.module, x_train)
 
-            # Prep the model and run an initial un-timed batch
-            run_intial(batch_size, compile_stop_watch, args.module, model)
-            
             # training run
             if args.train:
                 value_check(examples, epochs, batch_size)
-                train(x_train, y_train, epoch_size, model, batch_size, compile_stop_watch, epochs, stop_watch, output)
+                train(x_train, y_train, epoch_size, model, batch_size, 
+                    compile_stop_watch, epochs, stop_watch, output, network)
             # inference run
             else:
-                inference(args.module, model, batch_size, compile_stop_watch, output, x_train, examples, stop_watch)
-            
-            # Stop stopwatches
-            stop_watch.stop()
-            compile_stop_watch.stop()
+                inference(args.module, model, batch_size, compile_stop_watch, 
+                    output, x_train, examples, stop_watch)
 
             # Record stopwatch times
             execution_duration = stop_watch.elapsed()
