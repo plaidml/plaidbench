@@ -99,10 +99,11 @@ def train(x_train, y_train, epoch_size, model, batch_size, compile_stop_watch,
     
     run_initial(batch_size, compile_stop_watch, network, model)
     model.train_on_batch(x_train[0:batch_size], y_train[0:batch_size])
-    x = x_train[:epoch_size]
-    y = y_train[:epoch_size]
 
     compile_stop_watch.stop()
+
+    x = x_train[:epoch_size]
+    y = y_train[:epoch_size]
 
     for i in range(epochs):
         if i == 1:
@@ -204,7 +205,9 @@ def main():
     parser.add_argument('--train', action='store_true')
     parser.add_argument('--blanket-run', action='store_true')
     parser.add_argument('--print-stacktraces', action='store_true')
-    parser.add_argument('module', choices=SUPPORTED_NETWORKS)
+    args1 = parser.parse_known_args()
+    if args1[0].blanket_run == False:
+        parser.add_argument('module', choices=SUPPORTED_NETWORKS)
     args = parser.parse_args()
 
     # Plaid, fp16, and verbosity setup
