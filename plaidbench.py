@@ -285,14 +285,11 @@ def main():
             # Record stopwatch times
             execution_duration = stop_watch.elapsed()
             compile_duration = compile_stop_watch.elapsed()
-            
-            # Record data
-            if args.blanket_run:
-                network_data['average_example_duration'] = execution_duration / examples
 
-            network_data['execution_duration'] = execution_duration
             network_data['compile_duration'] = compile_duration
+            network_data['execution_duration'] = execution_duration / examples
             network_data['precision'] = output.precision
+            network_data['example_size'] = examples
 
             # Print statement
             printf('Example finished, elapsed: {} (compile), {} (execution)'.format(
