@@ -97,14 +97,15 @@ def train(x_train, y_train, epoch_size, model, batch_size, compile_stop_watch,
     compile_stop_watch.start_outer()
     stop_watch.start_outer()
     
-    run_initial(batch_size, compile_stop_watch, network, model)
-    model.train_on_batch(x_train[0:batch_size], y_train[0:batch_size])
+    #run_initial(batch_size, compile_stop_watch, network, model)
+    #model.train_on_batch(x_train[0:batch_size], y_train[0:batch_size])
 
     compile_stop_watch.stop()
 
     x = x_train[:epoch_size]
     y = y_train[:epoch_size]
 
+    '''
     for i in range(epochs):
         if i == 1:
             printf('Doing the main timing')
@@ -116,7 +117,7 @@ def train(x_train, y_train, epoch_size, model, batch_size, compile_stop_watch,
         if i == 0:
             output.contents = [history.history['loss']]
     output.contents = np.array(output.contents)
-
+    ''' 
     stop_watch.stop()
 
 
@@ -205,10 +206,15 @@ def main():
     parser.add_argument('--train', action='store_true')
     parser.add_argument('--blanket-run', action='store_true')
     parser.add_argument('--print-stacktraces', action='store_true')
+    parser.add_argument('--DEBUG', action='store_true')
     args1 = parser.parse_known_args()
     if args1[0].blanket_run == False:
         parser.add_argument('module', choices=SUPPORTED_NETWORKS)
     args = parser.parse_args()
+
+
+    if args.DEBUG:
+        printf("\n\nIN DEBUG MODE\n\n")
 
     # Plaid, fp16, and verbosity setup
     if args.plaid or (not args.no_plaid and has_plaid()):
@@ -244,6 +250,7 @@ def main():
         data = {}
         outputs = {}
         networks = list(SUPPORTED_NETWORKS)
+        batch_list = [1, 2, 4, 8, 16, 32, 64]
 
         if args.plaid or (not args.no_plaid and has_plaid()):
             import plaidml
@@ -262,7 +269,10 @@ def main():
         printf("\nCurrent network being run : " + network)  
         args.module = network
         network_data = {}
-
+    
+        if args.DEBUG:
+            for batch in batch_list:
+                printf('running batch ' + str(batch))
         # Run network
         try:
             value_check(examples, epochs, batch_size)
@@ -313,7 +323,11 @@ def main():
         
         # stores network data in dictionary
         if args.blanket_run:
-            outputs[network] = network_data
+            if args.DEBUG:
+                composite_str = network + " : " + str(batch_size)
+                outputs[composite_str] = network_data
+            else:
+                outputs[network] = network_data
 
         # write all data to result.json / report.npy if single run
         else:
