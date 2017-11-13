@@ -97,14 +97,14 @@ def train(x_train, y_train, epoch_size, model, batch_size, compile_stop_watch,
     compile_stop_watch.start_outer()
     stop_watch.start_outer()
     
-    #run_initial(batch_size, compile_stop_watch, network, model)
-    #model.train_on_batch(x_train[0:batch_size], y_train[0:batch_size])
+    run_initial(batch_size, compile_stop_watch, network, model)
+    model.train_on_batch(x_train[0:batch_size], y_train[0:batch_size])
 
     compile_stop_watch.stop()
 
     x = x_train[:epoch_size]
     y = y_train[:epoch_size]
-    '''
+    
     for i in range(epochs):
         if i == 1:
             printf('Doing the main timing')
@@ -116,7 +116,7 @@ def train(x_train, y_train, epoch_size, model, batch_size, compile_stop_watch,
         if i == 0:
             output.contents = [history.history['loss']]
     output.contents = np.array(output.contents)
-    ''' 
+    
     stop_watch.stop()
 
 
