@@ -326,7 +326,7 @@ def main():
                 outputs[composite_str] = dict(network_data)
             # write all data to result.json / report.npy if single run
             else:
-                network_data['example'] = network
+                network_data['model'] = network
                 try:
                     os.makedirs(args.result)
                 except OSError as ex:
