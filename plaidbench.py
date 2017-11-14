@@ -104,7 +104,7 @@ def train(x_train, y_train, epoch_size, model, batch_size, compile_stop_watch,
 
     x = x_train[:epoch_size]
     y = y_train[:epoch_size]
-    '''
+    
     for i in range(epochs):
         if i == 1:
             printf('Doing the main timing')
@@ -116,7 +116,7 @@ def train(x_train, y_train, epoch_size, model, batch_size, compile_stop_watch,
         if i == 0:
             output.contents = [history.history['loss']]
     output.contents = np.array(output.contents)
-    '''
+    
     time.sleep(batch_size * .1)
     stop_watch.stop()
 
@@ -211,7 +211,6 @@ def main():
         parser.add_argument('module', choices=SUPPORTED_NETWORKS)
     args = parser.parse_args()
 
-
     # Plaid, fp16, and verbosity setup
     if args.plaid or (not args.no_plaid and has_plaid()):
         printf('Using PlaidML backend.')
@@ -267,11 +266,10 @@ def main():
         printf("\nCurrent network being run : " + network)  
         args.module = network
         network_data = {}
-    
 
         for batch in batch_list:
             batch_size = batch
-            printf('running with a batch size of ' + str(batch_size))
+            printf('Running {0} examples on {1}, batch size {2}'.format(examples, network, batch))
         
             # Run network w/ batch_size
             try:
