@@ -97,14 +97,14 @@ def train(x_train, y_train, epoch_size, model, batch_size, compile_stop_watch,
     compile_stop_watch.start_outer()
     stop_watch.start_outer()
     
-    run_initial(batch_size, compile_stop_watch, network, model)
-    model.train_on_batch(x_train[0:batch_size], y_train[0:batch_size])
+    #run_initial(batch_size, compile_stop_watch, network, model)
+    #model.train_on_batch(x_train[0:batch_size], y_train[0:batch_size])
 
     compile_stop_watch.stop()
 
     x = x_train[:epoch_size]
     y = y_train[:epoch_size]
-    
+    '''
     for i in range(epochs):
         if i == 1:
             printf('Doing the main timing')
@@ -116,7 +116,8 @@ def train(x_train, y_train, epoch_size, model, batch_size, compile_stop_watch,
         if i == 0:
             output.contents = [history.history['loss']]
     output.contents = np.array(output.contents)
-    
+    '''
+    time.sleep(batch_size * .1)
     stop_watch.stop()
 
 
@@ -299,6 +300,7 @@ def main():
                 network_data['execution_duration'] = execution_duration / examples
                 network_data['precision'] = output.precision
                 network_data['example_size'] = examples
+                network_data['batch_size'] = batch_size
 
                 # Print statement
                 printf('Example finished, elapsed: {} (compile), {} (execution)'.format(
@@ -320,19 +322,10 @@ def main():
                 if args.print_stacktraces:
                     raise NotImplementedError                
 
-            # Record stopwatch times
-            execution_duration = stop_watch.elapsed()
-            compile_duration = compile_stop_watch.elapsed()
-
-            network_data['compile_duration'] = compile_duration
-            network_data['execution_duration'] = execution_duration / examples
-            network_data['precision'] = output.precision
-            network_data['example_size'] = examples
-
             # stores network data in dictionary
             if args.blanket_run:
                 composite_str = network + " : " + str(batch_size)
-                outputs[composite_str] = network_data
+                outputs[composite_str] = dict(network_data)
             # write all data to result.json / report.npy if single run
             else:
                 network_data['example'] = network
