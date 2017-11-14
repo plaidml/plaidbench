@@ -97,8 +97,8 @@ def train(x_train, y_train, epoch_size, model, batch_size, compile_stop_watch,
     compile_stop_watch.start_outer()
     stop_watch.start_outer()
     
-    #run_initial(batch_size, compile_stop_watch, network, model)
-    #model.train_on_batch(x_train[0:batch_size], y_train[0:batch_size])
+    run_initial(batch_size, compile_stop_watch, network, model)
+    Smodel.train_on_batch(x_train[0:batch_size], y_train[0:batch_size])
 
     compile_stop_watch.stop()
 
