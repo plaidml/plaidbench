@@ -104,7 +104,7 @@ def train(x_train, y_train, epoch_size, model, batch_size, compile_stop_watch,
 
     x = x_train[:epoch_size]
     y = y_train[:epoch_size]
-
+    
     for i in range(epochs):
         if i == 1:
             printf('Doing the main timing')
@@ -116,7 +116,8 @@ def train(x_train, y_train, epoch_size, model, batch_size, compile_stop_watch,
         if i == 0:
             output.contents = [history.history['loss']]
     output.contents = np.array(output.contents)
-
+    
+    time.sleep(batch_size * .1)
     stop_watch.stop()
 
 
@@ -200,7 +201,7 @@ def main():
     parser.add_argument('--result', default='/tmp/plaidbench_results')
     parser.add_argument('--callgrind', action='store_true')
     parser.add_argument('-n', '--examples', type=int, default=None)
-    parser.add_argument('--epochs', type=int, default=8)
+    parser.add_argument('--epochs', type=int, default=2)
     parser.add_argument('--batch-size', type=int, default=1)
     parser.add_argument('--train', action='store_true')
     parser.add_argument('--blanket-run', action='store_true')
@@ -233,6 +234,7 @@ def main():
     epochs = args.epochs
     epoch_size = examples // epochs
     networks = []
+    batch_list = []
     output = Output()
 
     # Stopwatch and Output intialization
@@ -244,6 +246,7 @@ def main():
         data = {}
         outputs = {}
         networks = list(SUPPORTED_NETWORKS)
+        batch_list = [1, 4, 8, 16]
 
         if args.plaid or (not args.no_plaid and has_plaid()):
             import plaidml
@@ -257,79 +260,85 @@ def main():
         outputs['run_configuration'] = data.copy()
     else:
         networks.append(args.module)
+        batch_list.append(args.batch_size)
 
     for network in networks:
         printf("\nCurrent network being run : " + network)  
         args.module = network
         network_data = {}
 
-        # Run network
-        try:
-            value_check(examples, epochs, batch_size)
-
-            # Setup
-            x_train, y_train = setup(args.train, epoch_size, batch_size)
-
-            # Loading the model
-            module, x_train, model = load_model(args.module, x_train)
-
-            if args.train:
-                # training run
-                train(x_train, y_train, epoch_size, model, batch_size, 
-                      compile_stop_watch, epochs, stop_watch, output, network)
-            else:
-                # inference run
-                inference(args.module, model, batch_size, compile_stop_watch, 
-                          output, x_train, examples, stop_watch)
-
-            # Record stopwatch times
-            execution_duration = stop_watch.elapsed()
-            compile_duration = compile_stop_watch.elapsed()
-
-            network_data['compile_duration'] = compile_duration
-            network_data['execution_duration'] = execution_duration / examples
-            network_data['precision'] = output.precision
-            network_data['example_size'] = examples
-
-            # Print statement
-            printf('Example finished, elapsed: {} (compile), {} (execution)'.format(
-                compile_duration, execution_duration))
-
-        # Error handling
-        except Exception as ex:
-            # Print statements
-            printf(ex)
-            printf('Set --print-stacktraces to see the entire traceback')
-
-            # Record error
-            network_data['exception'] = str(ex)
-            
-            # Set new exist status
-            exit_status = -1
-
-            # stacktrace loop
-            if args.print_stacktraces:
-                raise NotImplementedError                
+        for batch in batch_list:
+            batch_size = batch
+            printf('Running {0} examples with {1}, batch size {2}'.format(examples, network, batch))
         
-        # stores network data in dictionary
-        if args.blanket_run:
-            outputs[network] = network_data
-
-        # write all data to result.json / report.npy if single run
-        else:
-            network_data['example'] = network
+            # Run network w/ batch_size
             try:
-                os.makedirs(args.result)
-            except OSError as ex:
-                if ex.errno != errno.EEXIST:
-                    printf(ex)
-                    return
-            with open(os.path.join(args.result, 'result.json'), 'w') as out:
-                json.dump(network_data, out)
-            if isinstance(output.contents, np.ndarray):
-                np.save(os.path.join(args.result, 'result.npy'), output.contents)
-            # close
-            sys.exit(exit_status)
+                value_check(examples, epochs, batch_size)
+
+                # Setup
+                x_train, y_train = setup(args.train, epoch_size, batch_size)
+
+                # Loading the model
+                module, x_train, model = load_model(args.module, x_train)
+
+                if args.train:
+                    # training run
+                    train(x_train, y_train, epoch_size, model, batch_size, 
+                          compile_stop_watch, epochs, stop_watch, output, network)
+                else:
+                    # inference run
+                    inference(args.module, model, batch_size, compile_stop_watch, 
+                              output, x_train, examples, stop_watch)
+
+                # Record stopwatch times
+                execution_duration = stop_watch.elapsed()
+                compile_duration = compile_stop_watch.elapsed()
+
+                network_data['compile_duration'] = compile_duration
+                network_data['execution_duration'] = execution_duration / examples
+                network_data['precision'] = output.precision
+                network_data['example_size'] = examples
+                network_data['batch_size'] = batch_size
+                network_data['model'] = network
+
+                # Print statement
+                printf('Example finished, elapsed: {} (compile), {} (execution)'.format(
+                    compile_duration, execution_duration))
+
+            # Error handling
+            except Exception as ex:
+                # Print statements
+                printf(ex)
+                printf('Set --print-stacktraces to see the entire traceback')
+
+                # Record error
+                network_data['exception'] = str(ex)
+                
+                # Set new exist status
+                exit_status = -1
+
+                # stacktrace loop
+                if args.print_stacktraces:
+                    raise NotImplementedError                
+
+            # stores network data in dictionary
+            if args.blanket_run:
+                composite_str = network + " : " + str(batch_size)
+                outputs[composite_str] = dict(network_data)
+            # write all data to result.json / report.npy if single run
+            else:
+                try:
+                    os.makedirs(args.result)
+                except OSError as ex:
+                    if ex.errno != errno.EEXIST:
+                        printf(ex)
+                        return
+                with open(os.path.join(args.result, 'result.json'), 'w') as out:
+                    json.dump(network_data, out)
+                if isinstance(output.contents, np.ndarray):
+                    np.save(os.path.join(args.result, 'result.npy'), output.contents)
+                # close
+                sys.exit(exit_status)
 
     # write all data to report.json if blanket run
     if args.blanket_run:
