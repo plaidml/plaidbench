@@ -201,7 +201,7 @@ def main():
     parser.add_argument('--result', default='/tmp/plaidbench_results')
     parser.add_argument('--callgrind', action='store_true')
     parser.add_argument('-n', '--examples', type=int, default=None)
-    parser.add_argument('--epochs', type=int, default=8)
+    parser.add_argument('--epochs', type=int, default=2)
     parser.add_argument('--batch-size', type=int, default=1)
     parser.add_argument('--train', action='store_true')
     parser.add_argument('--blanket-run', action='store_true')
@@ -339,7 +339,6 @@ def main():
                     np.save(os.path.join(args.result, 'result.npy'), output.contents)
                 # close
                 sys.exit(exit_status)
-
 
     # write all data to report.json if blanket run
     if args.blanket_run:
