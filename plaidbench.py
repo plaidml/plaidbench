@@ -98,7 +98,7 @@ def train(x_train, y_train, epoch_size, model, batch_size, compile_stop_watch,
     stop_watch.start_outer()
     
     run_initial(batch_size, compile_stop_watch, network, model)
-    Smodel.train_on_batch(x_train[0:batch_size], y_train[0:batch_size])
+    model.train_on_batch(x_train[0:batch_size], y_train[0:batch_size])
 
     compile_stop_watch.stop()
 
@@ -269,7 +269,7 @@ def main():
 
         for batch in batch_list:
             batch_size = batch
-            printf('Running {0} examples on {1}, batch size {2}'.format(examples, network, batch))
+            printf('Running {0} examples with {1}, batch size {2}'.format(examples, network, batch))
         
             # Run network w/ batch_size
             try:
@@ -299,6 +299,7 @@ def main():
                 network_data['precision'] = output.precision
                 network_data['example_size'] = examples
                 network_data['batch_size'] = batch_size
+                network_data['model'] = network
 
                 # Print statement
                 printf('Example finished, elapsed: {} (compile), {} (execution)'.format(
@@ -326,7 +327,6 @@ def main():
                 outputs[composite_str] = dict(network_data)
             # write all data to result.json / report.npy if single run
             else:
-                network_data['model'] = network
                 try:
                     os.makedirs(args.result)
                 except OSError as ex:
