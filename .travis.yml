@@ -23,4 +23,4 @@ install:
 
 script:
   - PLAIDML_EXPERIMENTAL=1 python plaidbench.py mobilenet
-  - PLAIDML_EXPERIMENTAL=1 python plaidbench.py --blanket --train -n 64
+
