@@ -116,8 +116,6 @@ def train(x_train, y_train, epoch_size, model, batch_size, compile_stop_watch,
         if i == 0:
             output.contents = [history.history['loss']]
     output.contents = np.array(output.contents)
-    
-    time.sleep(batch_size * .1)
     stop_watch.stop()
 
 
@@ -319,7 +317,7 @@ def main():
 
                 # stacktrace loop
                 if args.print_stacktraces:
-                    raise NotImplementedError                
+                    raise              
 
             # stores network data in dictionary
             if args.blanket_run:
