@@ -14,11 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 def scale_dataset(x_train):
     import numpy as np
     # cifar10 data is only 32x32 pixels, so we must upsample by a factor of 7
     # to produce the 224x224 images required by resnet.
     return np.repeat(np.repeat(x_train, 7, axis=1), 7, axis=2)
+
 
 def build_model():
     import keras.applications as kapp
@@ -26,4 +28,3 @@ def build_model():
     from keras.layers import Input
     inputLayer = Input(shape=(224, 224, 3), dtype=floatx())
     return kapp.ResNet50(input_tensor=inputLayer)
-

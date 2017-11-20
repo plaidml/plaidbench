@@ -14,15 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 def scale_dataset(x_train):
     import numpy as np
     # Upscale image size by a factor of 10
     x_train = np.repeat(np.repeat(x_train, 10, axis=1), 10, axis=2)
     # Crop the images to 299 x 299 and normalize
-    return (x_train[:, 10:10+299, 10:10+299])/255.
+    return (x_train[:, 10:10 + 299, 10:10 + 299]) / 255.
+
 
 def build_model():
     import keras.applications as kapp
     return kapp.inception_v3.InceptionV3()
-
-

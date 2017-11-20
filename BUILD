@@ -16,21 +16,17 @@ py_library(
     srcs = ["plaidbench.py"],
     data = glob([
         "cifar16.npy",
-        "networks/**"]
-    ),
+        "networks/**",
+    ]),
 )
 
 py_binary(
-    name = "benchbin",
-    srcs = [
-        "plaidbench.py",
-    ],
+    name = "bin",
+    srcs = ["plaidbench.py"],
     data = glob([
         "cifar16.npy",
         "networks/**",
     ]),
     main = "plaidbench.py",
-    deps = [
-        "@vertexai_plaidml//plaidml/keras",
-    ],
+    deps = ["@vertexai_plaidml//plaidml/keras"],
 )

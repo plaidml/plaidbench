@@ -14,10 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 def scale_dataset(x_train):
     import numpy as np
     # Scale CIFAR10's 32x32 images up to 224x224
     return np.repeat(np.repeat(x_train, 7, axis=1), 7, axis=2)
+
 
 def build_model():
     import keras.applications as kapp
@@ -25,4 +27,3 @@ def build_model():
     from keras.backend.common import floatx
     inputLayer = Input(shape=(224, 224, 3), dtype=floatx())
     return kapp.VGG16(input_tensor=inputLayer)
-

@@ -28,7 +28,13 @@ import time
 import random
 
 
+def printf(*args, **kwargs):
+    print(*args, **kwargs)
+    sys.stdout.flush()
+
+
 class StopWatch(object):
+
     def __init__(self, use_callgrind):
         self.__start = None
         self.__stop = None
