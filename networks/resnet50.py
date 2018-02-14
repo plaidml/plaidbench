@@ -24,7 +24,7 @@ def scale_dataset(x_train):
 
 def build_model():
     import keras.applications as kapp
-    from keras.backend.common import floatx
+    from keras.backend import floatx
     from keras.layers import Input
     inputLayer = Input(shape=(224, 224, 3), dtype=floatx())
     return kapp.ResNet50(input_tensor=inputLayer)

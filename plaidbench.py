@@ -27,6 +27,8 @@ import sys
 import time
 import random
 
+SUPPORTED_NETWORKS = ['inception_v3', 'mobilenet', 'resnet50', 'vgg16', 'vgg19', 'xception']
+
 
 def printf(*args, **kwargs):
     print(*args, **kwargs)
@@ -66,14 +68,10 @@ class StopWatch(object):
 
 
 class Output(object):
+
     def __init__(self):
         self.contents = None
         self.precision = 'untested'
-
-
-def printf(*args, **kwargs):
-    print(*args, **kwargs)
-    sys.stdout.flush()
 
 
 def has_plaid():
@@ -84,25 +82,26 @@ def has_plaid():
         return False
 
 
-def value_check(examples, epochs, batch_size):
-    if epochs >= examples:
-        raise ValueError('The number of epochs must be less than the number of examples.')
-    if batch_size >= (examples // epochs):
-        raise ValueError('The number of examples per epoch must be greater than the batch size.')
-    if examples % epochs != 0:
-        raise ValueError('The number of examples must be divisible by the number of epochs.')
+def value_check(train, examples, epochs, batch_size):
     if examples % batch_size != 0:
         raise ValueError('The number of examples must be divisible by the batch size.')
-    if (examples // epochs) % batch_size != 0:
-        raise ValueError('The number of examples per epoch is not divisible by the batch size.')
+    if train:
+      if epochs >= examples:
+          raise ValueError('The number of epochs must be less than the number of examples.')
+      if batch_size >= (examples // epochs):
+          raise ValueError('The number of examples per epoch must be greater than the batch size.')
+      if examples % epochs != 0:
+          raise ValueError('The number of examples must be divisible by the number of epochs.')
+      if (examples // epochs) % batch_size != 0:
+          raise ValueError('The number of examples per epoch is not divisible by the batch size.')
 
 
-def train(x_train, y_train, epoch_size, model, batch_size, compile_stop_watch, 
-          epochs, stop_watch, output, network):
+def train(x_train, y_train, epoch_size, model, batch_size, compile_stop_watch, epochs, stop_watch,
+          output, network):
     # Training
     compile_stop_watch.start_outer()
     stop_watch.start_outer()
-    
+
     run_initial(batch_size, compile_stop_watch, network, model)
     model.train_on_batch(x_train[0:batch_size], y_train[0:batch_size])
 
@@ -110,7 +109,7 @@ def train(x_train, y_train, epoch_size, model, batch_size, compile_stop_watch,
 
     x = x_train[:epoch_size]
     y = y_train[:epoch_size]
-    
+
     for i in range(epochs):
         if i == 1:
             printf('Doing the main timing')
@@ -125,17 +124,17 @@ def train(x_train, y_train, epoch_size, model, batch_size, compile_stop_watch,
     stop_watch.stop()
 
 
-def inference(network, model, batch_size, compile_stop_watch, output, x_train, 
-              examples, stop_watch):
+def inference(network, model, batch_size, compile_stop_watch, output, x_train, examples,
+              stop_watch):
     # Inference
     compile_stop_watch.start_outer()
     stop_watch.start_outer()
-    
-    run_initial(batch_size, compile_stop_watch, network, model);
+
+    run_initial(batch_size, compile_stop_watch, network, model)
     y = model.predict(x=x_train, batch_size=batch_size)
-    
+
     compile_stop_watch.stop()
-    
+
     output.contents = y
 
     for i in range(32 // batch_size + 1):
@@ -181,17 +180,54 @@ def load_model(module, x_train):
     return module, x_train, model
 
 
+def load_golden(model, train, batch_size):
+    if train:
+        name = 'train'
+    else:
+        name = 'infer'
+    filename = '{},bs-{}.npy'.format(name, batch_size)
+    this_dir = os.path.dirname(os.path.abspath(__file__))
+    golden_path = os.path.join(this_dir, 'golden', model, filename)
+    if not os.path.exists(golden_path):
+        return None
+    return np.load(golden_path)
+
+
 def run_initial(batch_size, compile_stop_watch, network, model):
     print("Compiling and running initial batch, batch_size={}".format(batch_size))
     optimizer = 'sgd'
     if network[:3] == 'vgg':
         from keras.optimizers import SGD
         optimizer = SGD(lr=0.0001)
-    model.compile(optimizer=optimizer, loss='categorical_crossentropy',
-                  metrics=['accuracy'])
+    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
 
 
-SUPPORTED_NETWORKS = ['inception_v3', 'mobilenet', 'resnet50', 'vgg16', 'vgg19', 'xception']
+def check_correctness(base_output, cur_output, precision):
+    # TODO: Parameterize relative and absolute error tolerance
+    if precision == 'high':
+        rel_err = 1e-04
+    elif precision == 'low':
+        rel_err = 0.2
+
+    correct = np.allclose(base_output, cur_output, rtol=rel_err, atol=1e-06)
+    # This duplicates allclose calculation for more detailed report
+    relative_error = ((rel_err * np.absolute(base_output - cur_output)) /
+                      (1e-06 + rel_err * np.absolute(cur_output)))
+    max_error = np.amax(relative_error)
+    max_abs_error = np.amax(np.absolute(base_output - cur_output))
+    correct_entries = 0
+    incorrect_entries = 0
+    for x in np.nditer(relative_error):
+        if x > rel_err:
+            incorrect_entries += 1
+        else:
+            correct_entries += 1
+    try:
+        fail_ratio = incorrect_entries / float(correct_entries + incorrect_entries)
+    except ZeroDivisionError:
+        fail_ratio = 'Undefined'
+
+    return (correct, max_error, max_abs_error, fail_ratio)
 
 
 def main():
@@ -223,17 +259,17 @@ def main():
             plaidml._internal_set_vlog(args.verbose)
         plaidml.keras.install_backend()
     if args.fp16:
-        from keras.backend.common import set_floatx
+        from keras.backend import set_floatx
         set_floatx('float16')
 
-    examples = -1
-    if args.examples == None:
+    if args.examples is None:
         if args.blanket_run:
             examples = 256
         else:
             examples = 1024
     else:
         examples = args.examples
+
     batch_size = int(args.batch_size)
     epochs = args.epochs
     epoch_size = examples // epochs
@@ -241,10 +277,10 @@ def main():
     batch_list = []
     output = Output()
 
-    # Stopwatch and Output intialization
+    # Stopwatch and Output initialization
     stop_watch = StopWatch(args.callgrind)
     compile_stop_watch = StopWatch(args.callgrind)
-    
+
     # Blanket run - runs every supported network
     if args.blanket_run:
         data = {}
@@ -267,32 +303,33 @@ def main():
         batch_list.append(args.batch_size)
 
     for network in networks:
-        printf("\nCurrent network being run : " + network)  
+        printf()
+        printf("Current network being run : " + network)
         args.module = network
         network_data = {}
 
         for batch in batch_list:
             batch_size = batch
-            printf('Running {0} examples with {1}, batch size {2}'.format(examples, network, batch))
-        
+            printf('Running {0} examples with {1}, batch size {2}'.format(
+                examples, network, batch))
+            value_check(args.train, examples, epochs, batch_size)
+
             # Run network w/ batch_size
             try:
-                value_check(examples, epochs, batch_size)
-
                 # Setup
-                x_train, y_train = setup(args.train, epoch_size, batch_size)
+                x, y_train = setup(args.train, epoch_size, batch_size)
 
                 # Loading the model
-                module, x_train, model = load_model(args.module, x_train)
+                module, x, model = load_model(args.module, x)
 
                 if args.train:
                     # training run
-                    train(x_train, y_train, epoch_size, model, batch_size, 
-                          compile_stop_watch, epochs, stop_watch, output, network)
+                    train(x, y_train, epoch_size, model, batch_size, compile_stop_watch,
+                          epochs, stop_watch, output, network)
                 else:
                     # inference run
-                    inference(args.module, model, batch_size, compile_stop_watch, 
-                              output, x_train, examples, stop_watch)
+                    inference(args.module, model, batch_size, compile_stop_watch, output, x,
+                              examples, stop_watch)
 
                 # Record stopwatch times
                 execution_duration = stop_watch.elapsed()
@@ -306,8 +343,32 @@ def main():
                 network_data['model'] = network
 
                 # Print statement
-                printf('Example finished, elapsed: {} (compile), {} (execution)'.format(
-                    compile_duration, execution_duration))
+                printf(
+                    'Example finished, elapsed: {} (compile), {} (execution), {} (execution per example)'.
+                    format(compile_duration, execution_duration, execution_duration / examples))
+
+                # Attempt to validate correctness
+                base_output = load_golden(args.module, args.train, batch_size)
+                if base_output is not None:
+                    if args.train:
+                        precision = 'low'
+                    else:
+                        precision = 'high'
+                    (correct, max_error, max_abs_error, fail_ratio) = check_correctness(
+                        base_output, output.contents, precision)
+                    network_data['correct'] = correct
+                    network_data['max_error'] = float(max_error)
+                    network_data['max_abs_error'] = float(max_abs_error)
+                    network_data['fail_ratio'] = fail_ratio
+                    if correct:
+                        status = 'PASS'
+                    else:
+                        status = 'FAIL'
+                    printf(
+                        'Correctness: {}, max_error: {}, max_abs_error: {}, fail_ratio: {}'.format(
+                            status, max_error, max_abs_error, fail_ratio))
+                else:
+                    printf('Correctness: untested. Could not find golden file to compare against.')
 
             # Error handling
             except Exception as ex:
@@ -317,13 +378,13 @@ def main():
 
                 # Record error
                 network_data['exception'] = str(ex)
-                
+
                 # Set new exist status
                 exit_status = -1
 
                 # stacktrace loop
                 if args.print_stacktraces:
-                    raise              
+                    raise
 
             # stores network data in dictionary
             if args.blanket_run:

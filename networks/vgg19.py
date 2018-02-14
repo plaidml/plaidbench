@@ -23,6 +23,6 @@ def scale_dataset(x_train):
 def build_model():
     import keras.applications as kapp
     from keras.layers import Input
-    from keras.backend.common import floatx
+    from keras.backend import floatx
     inputLayer = Input(shape=(224, 224, 3), dtype=floatx())
     return kapp.VGG19(input_tensor=inputLayer)
