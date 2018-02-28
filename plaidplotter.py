@@ -5,6 +5,7 @@ import math
 import random
 import argparse
 import json
+
 import seaborn as sns
 import numpy as np
 import matplotlib.pyplot as plt 
@@ -202,29 +203,60 @@ def color_bars(axes, colors, networks, batches):
 
 def main():
     print('Hello Stranger...')
-    illusory = "Where have you gone Stranger..."
+
     # set intial exit status
     exit_status = 0
 
     # intialize and run arguement parser
     parser = argparse.ArgumentParser()
-    parser.add_argument('--result', default='/tmp/plaidbench_results')
+    parser.add_argument('--path', default='/tmp/plaidbench_results')
+    parser.add_argument('--name', default='result.json')
     args = parser.parse_args()
+
+    # intialize variables
+    plot_maker = plotter()
+    uber_dict = {}
+    d = {}
 
     # open results file
     try:
-        os.makedirs(args.result)
+        os.makedirs(args.path)
     except OSError as ex:
         if ex.errno != errno.EEXIST:
             printf(ex)
             return
-    with open(os.path.join(args.result, 'result.json'), 'r') as out:
-        #json.dump(illusory, out)
-        illusory = json.load(out)
-        print(illusory)
+    with open(os.path.join(args.path, args.name), 'r') as saved_file:
+        for line in saved_file:
+            uber_dict = json.loads(line)
+            print(line)
+
+    d['model'] = uber_dict['model']
+    d['batch'] = uber_dict['batch_size']
+    d['example_size'] = uber_dict['example_size']
+    d['execution_duration'] = uber_dict['execution_duration']
+    d['time per example (seconds)'] = (d['execution_duration']/d['example_size']) * 1.0
+
+    for x, y in d.items():
+        print(x)
+        print(y)
+    
+    df = pd.DataFrame.from_dict(d)
+    plot_maker.generate_plot(df, args.name)
+
+    '''
+    d = {}
+    d['model'] = uber_dict['model']
+    d['time per example (seconds)'] = uber_dict['time per example (seconds)']
+    d['batch'] = uber_dict['batch']
+    d['name'] = uber_dict['name']
+
+    machine_info = uber_dict['machine_info']
+    df = pd.DataFrame.from_dict(d)
+    generate_plot(df, args.regraph)
 
     print(plotter.getColor(random.random(), .5, .5))
-    #plotter.generate_plot(df, 'SUCCESS!')
+    plotter.generate_plot(df, 'SUCCESS!')
+    '''
 
     # close program
     print('So Long Stranger...')
