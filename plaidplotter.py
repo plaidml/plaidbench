@@ -5,11 +5,14 @@ import math
 import random
 import argparse
 import json
-
+import platform
+import plaidml
+import pandas as pd
 import seaborn as sns
 import numpy as np
 import matplotlib.pyplot as plt 
 import matplotlib as mpl
+from plaidml import plaidml_setup
 
 class plotter(object):
     def getColor(self, hue, satur, val):
@@ -56,7 +59,7 @@ class plotter(object):
 
         return color
 
-    def generate_plot(self, df, title_str):
+    def generate_plot(self, df, title_str, path_str):
         set_style()
         col_order = (list(set(df['model'])))
         max_time = (float(max(df['time per example (seconds)'])))
@@ -103,8 +106,8 @@ class plotter(object):
             title = title_str + '.png'
         else:
             title = time.strftime("plaidbench %Y-%m-%d-%H:%M.png")
-        print("\nsaving figure '" + title + "'")
-        fig.savefig(title)
+        print("\nsaving figure at '" + path_str + '/' + title + "'")
+        fig.savefig(path_str + '/' + title)
 
 
 def plot(data, column, column_order, ymax):
@@ -210,13 +213,12 @@ def main():
     # intialize and run arguement parser
     parser = argparse.ArgumentParser()
     parser.add_argument('--path', default='/tmp/plaidbench_results')
-    parser.add_argument('--name', default='result.json')
+    parser.add_argument('--name', default='report.json')
     args = parser.parse_args()
 
     # intialize variables
     plot_maker = plotter()
-    uber_dict = {}
-    d = {}
+    data = {}
 
     # open results file
     try:
@@ -227,36 +229,48 @@ def main():
             return
     with open(os.path.join(args.path, args.name), 'r') as saved_file:
         for line in saved_file:
-            uber_dict = json.loads(line)
-            print(line)
+            data = json.loads(line)
 
-    d['model'] = uber_dict['model']
-    d['batch'] = uber_dict['batch_size']
-    d['example_size'] = uber_dict['example_size']
-    d['execution_duration'] = uber_dict['execution_duration']
-    d['time per example (seconds)'] = (d['execution_duration']/d['example_size']) * 1.0
+    # creating dict with completed runs
+    d = data
+    runs = {}
+    for key, values in data.items():
+        if 'compile_duration' in values:
+            runs[key] = values
 
-    for x, y in d.items():
-        print(x)
-        print(y)
-    
-    df = pd.DataFrame.from_dict(d)
-    plot_maker.generate_plot(df, args.name)
+    # sort runs dictionary
+    models_list = []
+    executions_list = []
+    batch_list2 = []
+    name = []
 
-    '''
-    d = {}
-    d['model'] = uber_dict['model']
-    d['time per example (seconds)'] = uber_dict['time per example (seconds)']
-    d['batch'] = uber_dict['batch']
-    d['name'] = uber_dict['name']
+    for x, y in sorted(runs.items()):
+        models_list.append(y['model'])
+        executions_list.append( y['execution_duration'] / data['run_configuration']['example_size'] )
+        batch_list2.append(y['batch_size'])
+        name.append(y['model'] + " : " + str(y['batch_size']))
 
-    machine_info = uber_dict['machine_info']
-    df = pd.DataFrame.from_dict(d)
-    generate_plot(df, args.regraph)
+    # setting up data frame
+    uber_list = pd.DataFrame()
+    uber_list['model'] = models_list
+    uber_list['time per example (seconds)'] = executions_list
+    uber_list['batch'] = batch_list2
+    uber_list['name'] = name
 
-    print(plotter.getColor(random.random(), .5, .5))
-    plotter.generate_plot(df, 'SUCCESS!')
-    '''
+    # attempting to get info about users env
+    userSys = platform.uname()
+    userPyV = platform.python_version()
+    machine_info = []
+    for info in userSys:
+        machine_info.append(info)
+    machine_info.append(userPyV)
+    ctx = plaidml.Context()
+    devices, _ = plaidml.devices(ctx, limit=100, return_all=True)
+    for dev in devices:      
+        plt.suptitle(str(dev))
+        machine_info.append(str(dev))
+
+    plot_maker.generate_plot(uber_list, args.name, args.path)     
 
     # close program
     print('So Long Stranger...')
@@ -264,108 +278,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-'''
-def date_converter(obj):
-    if isinstance(obj, datetime.datetime):
-        return obj.__str__()
-
-def save_run_info(uber_list, title_str):
-    title_str = title_str + ''
-    with open(title_str, 'w') as outfile:
-        json.dump(uber_list, outfile, default=date_converter)
-
-def getColor(hue, satur, val):
-    hue_i = int(hue * 6)
-    r = -1
-    g = -1
-    b = -1
-    f = hue * 6 - hue_i
-    p = val * (1 - satur)
-    q = val * (1 - f * satur)
-    t = val * (1 - (1 - f) * satur)
-
-    if (0 <= hue_i and hue_i < 1):
-        r = val 
-        g = t 
-        b = p 
-    elif (1 <= hue_i and hue_i < 2):
-        r = q
-        g = val 
-        b = p 
-    elif (2 <= hue_i and hue_i < 3):
-        r = p 
-        g = val 
-        b = t 
-    elif (3 <= hue_i and hue_i < 4):
-        r = p 
-        g = q 
-        b = val 
-    elif (4 <= hue_i and hue_i < 5):
-        r = t 
-        g = p 
-        b = val 
-    else:
-        r = val 
-        g = p 
-        b = q 
-
-    r = int(r * 256)
-    g = int(g * 256)
-    b = int(b * 256)
-
-    color = 'rgb(' + str(r) + ', ' + str(g) + ', ' + str(b) + ')'
-    color = '#%02x%02x%02x' % (r, g, b)
-
-    return color
-
-def generate_plot(df, title_str):
-        set_style()
-        col_order = (list(set(df['model'])))
-        max_time = (float(max(df['time per example (seconds)'])))
-
-        exponent = np.floor(np.log10(np.abs(max_time))).astype(int)
-        base_10 = 10
-        if exponent > 0:
-            base_10 = 1
-        else:
-            for number in range(1, np.abs(exponent)):
-                base_10 = base_10 * 10
-        max_time = ((math.ceil(base_10 * max_time)) / base_10)
-
-        palette = []
-        palette_dict = {}
-
-        gradient_step = .99 / (len(list(set(df['batch']))))
-
-        num = -1
-        golden_ratio = 0.618033988749895
-        h = random.random()
-
-        for x in df['model']:
-            if x not in palette_dict:
-                palette_dict[x] = h
-                h += golden_ratio
-                h = h % 1
-        
-        for x in palette_dict:
-            num = palette_dict[x]
-            gradient = gradient_step
-            for y in list(set(df['batch'])):
-                color = getColor(num, gradient, 1 - gradient)
-                palette.append(color)
-                gradient = gradient + gradient_step
-
-        fig, axes = plot(df, "model", col_order, max_time)
-        labels = (list(set(df['model'])))
-        set_labels(fig, axes, labels, list(set(df['batch'])), len(labels))
-        color_bars(axes, palette, len(df['model']), len(list(set(df['batch']))))
-
-        title = ''
-        if title_str != '':
-            title = title_str + '.png'
-        else:
-            title = time.strftime("plaidbench %Y-%m-%d-%H:%M.png")
-        print("\nsaving figure '" + title + "'")
-        fig.savefig(title)
-'''
