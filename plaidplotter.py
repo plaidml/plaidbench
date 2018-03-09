@@ -59,8 +59,10 @@ class plotter(object):
 
         return color
 
-    def generate_plot(self, df, title_str, path_str):
+    def generate_plot(self, df, title_str, path_str, isTrain, isProspector):
         set_style()
+
+        # prepping data
         col_order = (list(set(df['model'])))
         max_time = (float(max(df['time per example (seconds)'])))
 
@@ -73,11 +75,10 @@ class plotter(object):
                 base_10 = base_10 * 10
         max_time = ((math.ceil(base_10 * max_time)) / base_10)
 
+        # creating graph
         palette = []
         palette_dict = {}
-
         gradient_step = .99 / (len(list(set(df['batch']))))
-
         num = -1
         golden_ratio = 0.618033988749895
         h = random.random()
@@ -101,13 +102,45 @@ class plotter(object):
         set_labels(fig, axes, labels, list(set(df['batch'])), len(labels))
         color_bars(axes, palette, len(df['model']), len(list(set(df['batch']))))
 
+        # saving graph
         title = ''
         if title_str != '':
             title = title_str + '.png'
         else:
             title = time.strftime("plaidbench %Y-%m-%d-%H:%M.png")
-        print("\nsaving figure at '" + path_str + '/' + title + "'")
+        print("saving figure at '" + path_str + '/' + title + "'\n")
         fig.savefig(path_str + '/' + title)
+
+        # importing golden npy files, not other golden file utilization though
+        if isProspector == True:
+            models = list(set(df['model']))
+            batches = list(set(df['batch']))
+
+            this_dir = os.path.dirname(os.path.abspath(__file__))
+            golden_path = os.path.join(this_dir, 'golden')
+
+            illusory_path = ''
+            GOLD = '\033[0;33m'
+            BGOLD = '\033[1;33m'
+            PURPLE = '\033[0;35m'
+            ENDC = '\033[0m'
+
+            print('Attempting to retrieve ' + BGOLD + 'Golden Files' + ENDC + '...\n')
+            for model in models:
+                illusory_path = os.path.join(golden_path, model)
+                for batch in batches:
+                    if isTrain == True:
+                        filename = '{},bs-{}.npy'.format('train', batch)
+                    else:
+                        filename = '{},bs-{}.npy'.format('infer', batch)
+                    illusory_path = os.path.join(golden_path, model, filename)
+                    print(illusory_path)
+                    if not os.path.exists(illusory_path):
+                        print(PURPLE + '- no file -\n' + ENDC)
+                    else:
+                        print(GOLD + '- Found! -\n' + ENDC)  
+                        #data = np.load(illusory_path)
+                        #print(data)
 
 
 def plot(data, column, column_order, ymax):
@@ -205,15 +238,17 @@ def color_bars(axes, colors, networks, batches):
 
 
 def main():
-    print('Hello Stranger...')
-
     # set intial exit status
     exit_status = 0
 
     # intialize and run arguement parser
     parser = argparse.ArgumentParser()
-    parser.add_argument('--path', default='/tmp/plaidbench_results')
-    parser.add_argument('--name', default='report.json')
+    parser.add_argument('--path', default='/tmp/plaidbench_results', 
+                        help='system path to blanket run output that is to be graphed')
+    parser.add_argument('--name', default='report.json',
+                        help='file name of blanket run output (should end with .json)')
+    parser.add_argument('--prospector', action='store_true', default=False,
+                        help='seek out golden paths')
     args = parser.parse_args()
 
     # intialize variables
@@ -256,6 +291,7 @@ def main():
     uber_list['time per example (seconds)'] = executions_list
     uber_list['batch'] = batch_list2
     uber_list['name'] = name
+    isTrain = (data['run_configuration']['train'])
 
     # attempting to get info about users env
     userSys = platform.uname()
@@ -270,10 +306,9 @@ def main():
         plt.suptitle(str(dev))
         machine_info.append(str(dev))
 
-    plot_maker.generate_plot(uber_list, args.name, args.path)     
+    plot_maker.generate_plot(uber_list, args.name, args.path, isTrain, args.prospector)     
 
     # close program
-    print('So Long Stranger...')
     sys.exit(exit_status)
 
 if __name__ == '__main__':
