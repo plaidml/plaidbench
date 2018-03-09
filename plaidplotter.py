@@ -59,7 +59,10 @@ class plotter(object):
 
         return color
 
-    def generate_plot(self, df, title_str, path_str, isTrain, isProspector):
+    def generate_plot(self, df, args, isTrain):
+        title_str = args.name
+        path_str = args.path
+        isProspector = args.prospector
         set_style()
 
         # prepping data
@@ -305,8 +308,8 @@ def main():
     for dev in devices:      
         plt.suptitle(str(dev))
         machine_info.append(str(dev))
-
-    plot_maker.generate_plot(uber_list, args.name, args.path, isTrain, args.prospector)     
+    
+    plot_maker.generate_plot(uber_list, args, isTrain)      
 
     # close program
     sys.exit(exit_status)
