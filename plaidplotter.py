@@ -110,8 +110,7 @@ class plotter(object):
                     print(PURPLE + '- no file -\n' + ENDC)
                 else:
                     print(GOLD + '- Found! -\n' + ENDC)  
-                    #data = np.load(path_to_golden)
-                    #print(data)
+                    #data = (np.load(path_to_golden))[0]
 
 
 def plot(data, column, column_order, ymax):
@@ -217,7 +216,7 @@ def main():
     parser.add_argument('--path', default='/tmp/plaidbench_results', 
                         help='system path to blanket run output that is to be graphed')
     parser.add_argument('--name', default='report.json',
-                        help='file name of blanket run output (should end with .json)')
+                        help='file name of output run (should end with .json)')
     parser.add_argument('--include_comparisons', action='store_true', default=False,
                         help='seek out golden paths')
     args = parser.parse_args()

@@ -17,3 +17,8 @@ benchmark will run inference.
 By default, PlaidML is used as the backend. Specifying `--no-plaid` will utilize tensorflow,
 if installed.
 
+To create a graph from a run's output:
+
+`python plaidplotter.py [--name] NAME [--path] PATH`
+
+where NAME is the file name of the plaidbench output you wish to visualize, and PATH is the path to the output file. The default values are set to `report.json` and `/tmp/plaidbench_results` respectively.
