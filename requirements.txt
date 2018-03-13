@@ -1,2 +1,3 @@
 h5py>=2.7.0
 plaidml-keras>=0.2.0
+#onnx-plaidml>=0.1.0; sys_platform != 'win32'

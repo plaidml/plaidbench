@@ -36,6 +36,7 @@ py_library(
     srcs = ["plaidbench.py"],
     data = glob([
         "cifar16.npy",
+        "imdb16.npy",
         "golden/**",
         "networks/**",
     ]),
@@ -46,6 +47,7 @@ py_binary(
     srcs = ["plaidbench.py"],
     data = glob([
         "cifar16.npy",
+        "imdb16.npy",
         "golden/**",
         "networks/**",
     ]),
