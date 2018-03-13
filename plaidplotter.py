@@ -7,6 +7,7 @@ import argparse
 import json
 import platform
 import plaidml
+import colorsys
 import pandas as pd
 import seaborn as sns
 import numpy as np
@@ -16,53 +17,20 @@ from plaidml import plaidml_setup
 
 class plotter(object):
     def getColor(self, hue, satur, val):
-        hue_i = int(hue * 6)
-        r = -1
-        g = -1
-        b = -1
-        f = hue * 6 - hue_i
-        p = val * (1 - satur)
-        q = val * (1 - f * satur)
-        t = val * (1 - (1 - f) * satur)
+        rgb = colorsys.hsv_to_rgb(hue, satur, val)
 
-        if (0 <= hue_i and hue_i < 1):
-            r = val 
-            g = t 
-            b = p 
-        elif (1 <= hue_i and hue_i < 2):
-            r = q
-            g = val 
-            b = p 
-        elif (2 <= hue_i and hue_i < 3):
-            r = p 
-            g = val 
-            b = t 
-        elif (3 <= hue_i and hue_i < 4):
-            r = p 
-            g = q 
-            b = val 
-        elif (4 <= hue_i and hue_i < 5):
-            r = t 
-            g = p 
-            b = val 
-        else:
-            r = val 
-            g = p 
-            b = q 
-
-        r = int(r * 256)
-        g = int(g * 256)
-        b = int(b * 256)
-
-        color = 'rgb(' + str(r) + ', ' + str(g) + ', ' + str(b) + ')'
-        color = '#%02x%02x%02x' % (r, g, b)
+        r = int(rgb[0] * 256)
+        g = int(rgb[1] * 256)
+        b = int(rgb[2] * 256)
+        
+        color= '#%02x%02x%02x' % (r, g, b)
 
         return color
 
     def generate_plot(self, df, args, isTrain):
         title_str = args.name
         path_str = args.path
-        isProspector = args.prospector
+        isProspector = args.include_comparisons
         set_style()
 
         # prepping data
@@ -114,36 +82,36 @@ class plotter(object):
         print("saving figure at '" + path_str + '/' + title + "'\n")
         fig.savefig(path_str + '/' + title)
 
+    def find_golden_paths(self, df, isTrain):
         # importing golden npy files, not other golden file utilization though
-        if isProspector == True:
-            models = list(set(df['model']))
-            batches = list(set(df['batch']))
+        models = list(set(df['model']))
+        batches = list(set(df['batch']))
 
-            this_dir = os.path.dirname(os.path.abspath(__file__))
-            golden_path = os.path.join(this_dir, 'golden')
+        this_dir = os.path.dirname(os.path.abspath(__file__))
+        golden_path = os.path.join(this_dir, 'golden')
 
-            illusory_path = ''
-            GOLD = '\033[0;33m'
-            BGOLD = '\033[1;33m'
-            PURPLE = '\033[0;35m'
-            ENDC = '\033[0m'
+        path_to_golden = ''
+        GOLD = '\033[0;33m'
+        BGOLD = '\033[1;33m'
+        PURPLE = '\033[0;35m'
+        ENDC = '\033[0m'
 
-            print('Attempting to retrieve ' + BGOLD + 'Golden Files' + ENDC + '...\n')
-            for model in models:
-                illusory_path = os.path.join(golden_path, model)
-                for batch in batches:
-                    if isTrain == True:
-                        filename = '{},bs-{}.npy'.format('train', batch)
-                    else:
-                        filename = '{},bs-{}.npy'.format('infer', batch)
-                    illusory_path = os.path.join(golden_path, model, filename)
-                    print(illusory_path)
-                    if not os.path.exists(illusory_path):
-                        print(PURPLE + '- no file -\n' + ENDC)
-                    else:
-                        print(GOLD + '- Found! -\n' + ENDC)  
-                        #data = np.load(illusory_path)
-                        #print(data)
+        print('Attempting to retrieve ' + BGOLD + 'Golden Files' + ENDC + '...\n')
+        for model in models:
+            path_to_golden = os.path.join(golden_path, model)
+            for batch in batches:
+                if isTrain == True:
+                    filename = '{},bs-{}.npy'.format('train', batch)
+                else:
+                    filename = '{},bs-{}.npy'.format('infer', batch)
+                path_to_golden = os.path.join(golden_path, model, filename)
+                print(path_to_golden)
+                if not os.path.exists(path_to_golden):
+                    print(PURPLE + '- no file -\n' + ENDC)
+                else:
+                    print(GOLD + '- Found! -\n' + ENDC)  
+                    #data = np.load(path_to_golden)
+                    #print(data)
 
 
 def plot(data, column, column_order, ymax):
@@ -169,7 +137,7 @@ def plot(data, column, column_order, ymax):
         plt.yticks(np.arange(0, ymax + (ymax * .1), ymax/10))
 
     axes = np.array(g.axes.flat)
-    #hue_start = random.random()
+
     for ax in axes:
         #ax.hlines(.0003, -0.5, 0.5, linestyle='--', linewidth=1, color=getColor(hue_start, .6, .9))
         ax.set_ylim(0, ymax)
@@ -180,29 +148,29 @@ def plot(data, column, column_order, ymax):
 def set_labels(fig, axes, labels, batch_list, model_count):
     for i, ax in enumerate(axes):
         increment = .75 / len(batch_list)
-        illusory = []
+        label_positions = []
         
         if len(batch_list) % 2 == 0:        
-            foo = increment / 2
-            bar = -1 * foo
-            illusory.append(foo)
-            illusory.append(bar)
+            intial_position = increment / 2
+            inverse_position = -1 * intial_position
+            label_positions.append(intial_position)
+            label_positions.append(inverse_position)
 
             for j in range((len(batch_list) - 2) / 2):
-                foo = foo + increment
-                bar = -1 * foo
-                illusory.append(foo)
-                illusory.append(bar)    
+                intial_position = intial_position + increment
+                inverse_position = -1 * intial_position
+                label_positions.append(intial_position)
+                label_positions.append(inverse_position)    
         else:
-            illusory.append(0)
+            label_positions.append(0)
             half_len = (len(batch_list) - 1) / 2
 
             for j in range(half_len):
-                illusory.append((increment + (increment * j)))
-                illusory.append(-1 * (increment + (increment * j)))
+                label_positions.append((increment + (increment * j)))
+                label_positions.append(-1 * (increment + (increment * j)))
                 
-        illusory.sort()
-        ax.set_xticks(illusory) 
+        label_positions.sort()
+        ax.set_xticks(label_positions) 
         batch_list.sort()
         ax.set_xticklabels(batch_list)
 
@@ -231,13 +199,13 @@ def set_style():
 def color_bars(axes, colors, networks, batches):
     for i in range(networks/batches):
         for x in range(len(axes[i].patches)):
-            illusory = axes[i].patches[x]
-            illusory.set_color(colors[(i * batches) + x])
-            illusory.set_edgecolor('black')
+            patch = axes[i].patches[x]
+            patch.set_color(colors[(i * batches) + x])
+            patch.set_edgecolor('black')
             if len(axes[i].patches) == 1:
-                illusory.set_hatch('//') 
-                illusory.set_color('grey')
-                illusory.set_edgecolor('black')
+                patch.set_hatch('//') 
+                patch.set_color('grey')
+                patch.set_edgecolor('black')
 
 
 def main():
@@ -250,7 +218,7 @@ def main():
                         help='system path to blanket run output that is to be graphed')
     parser.add_argument('--name', default='report.json',
                         help='file name of blanket run output (should end with .json)')
-    parser.add_argument('--prospector', action='store_true', default=False,
+    parser.add_argument('--include_comparisons', action='store_true', default=False,
                         help='seek out golden paths')
     args = parser.parse_args()
 
@@ -309,6 +277,11 @@ def main():
         plt.suptitle(str(dev))
         machine_info.append(str(dev))
     
+    # find golden paths
+    if args.include_comparisons == True:
+        plot_maker.find_golden_paths(uber_list, isTrain)
+
+    # generate plot
     plot_maker.generate_plot(uber_list, args, isTrain)      
 
     # close program
