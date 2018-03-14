@@ -258,7 +258,7 @@ def _download_onnx_data(model, filename):
                     break
                 hash.update(data)
             if hash.hexdigest() != expected_sha256[model]:
-                raise RuntimeError("Invalid checksum on downloaded file from {}".format(url))
+                print("[WARNING] Invalid checksum on downloaded file from {}".format(url))
         print('Done')
         print('Extracting {}...'.format(compressed_file), end='')
         sys.stdout.flush()
