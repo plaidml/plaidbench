@@ -128,7 +128,7 @@ def train(x_train, y_train, epoch_size, model, batch_size, compile_stop_watch, e
     compile_stop_watch.start_outer()
     stop_watch.start_outer()
 
-    run_initial_keras(batch_size, compile_stop_watch, network, model)
+    run_initial_keras(batch_size, network, model)
     model.train_on_batch(x_train[0:batch_size], y_train[0:batch_size])
 
     compile_stop_watch.stop()
@@ -258,7 +258,7 @@ def _download_onnx_data(model, filename):
                     break
                 hash.update(data)
             if hash.hexdigest() != expected_sha256[model]:
-                print("[WARNING] Invalid checksum on downloaded file from {}".format(url))
+                raise RuntimeError("Invalid checksum on downloaded file from {}".format(url))
         print('Done')
         print('Extracting {}...'.format(compressed_file), end='')
         sys.stdout.flush()
