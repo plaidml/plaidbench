@@ -217,26 +217,26 @@ def setup_imdb(train, epoch_size, batch_size):
     return x_train, y_train
 
 
-def _download_onnx_data(model, filename):
+def _download_onnx_data(model, filename, refresh=False):
     # Uses the same directory structure as ONNX's backend test runner to reduce duplication
     expected_sha256 = {
-        'bvlc_alexnet': '31202b69aa718b9d4aa67d0ed772efbe6886b69935cdb9224923c9ab8f36d01e',
-        'densenet121': '6f3ec833eb27ef2170a407bc081c23893d2a1eb38f6374d36915e3ed1bba8242',
-        'inception_v1': '3d934442c85cdeeb1cdceef83bd020dc19e3c8f6b3f5f97d5e7133aee0d41e40',
-        'inception_v2': '1dba14b803bad006c591acbf8d5a9d459c139bc2067678a240fee4915d511bcf',
-        'resnet50': '09076ac927e4a63730a02c3d40c9e1bb72fd88db942d203f713214a8b69cf09f',
-        'shufflenet': 'a8d6339bf29c47d502cb8a11c3c753ec842f5b591f992b3af5590f06a437fd21',
-        'squeezenet': 'c62a71fcb7b9944fd54ef4d6d19d065fe7989fe2101d28093b59bf19b5db7d7a',
-        'vgg16': '52634b4dabb1255dfc0f48a2927dd04e9abf07b43e13d011457d9032d8088080',
-        'vgg19': '4ec42e15829d47c47c1f2cf00fd91b116c1e2b47a3e6bd2323c9be72593d69ec',
+        'bvlc_alexnet': 'b640cc797d25aa446cebefaa3274d517f0c25e26d66eb6f6686ac7e4d4d8d584',
+        'densenet121': '70586d81f49ad3bbe733270a1a58b5235794d51da3f9302cbc1e634accb6113d',
+        'inception_v1': '18dd953ae8f2056ac0a1fd56302ef2a5d56b35ccee44fddc7bbdcbcfe9a5adf1',
+        'inception_v2': '37ea826b395c559ed2cc148823ea77f793e591c5eff5a718d98733793b680dbc',
+        'resnet50': '074ba053b6aa46c6b74d09ba9b742335e59d5220951f576dbe1fd40abe3b6601',
+        'shufflenet': 'eeeef9e70d858a3fd72b9eb33435e480a9f2fac0fa0f2d2c75b148fe3e62cb7f',
+        'squeezenet': '80dc32f8172209d139160258da093dc08af95e61ec4457f98b9061499020331c',
+        'vgg16': '0828c49fb42b0b7bc35145cff2bf79c5b754505573d63e315bad31b4ced7e977',
+        'vgg19': '8646cc6d0252d3453328da9a15a32e82201bbf6854a865125344e2430c90a4e1',
     }
     onnx_home = os.path.expanduser(os.getenv('ONNX_HOME', os.path.join('~', '.onnx')))
     onnx_models = os.getenv('ONNX_MODELS', os.path.join(onnx_home, 'models'))
     model_dir = os.path.join(onnx_models, model)
-    if not os.path.exists(os.path.join(model_dir, filename)):
+    if refresh or not os.path.exists(os.path.join(model_dir, filename)):
         compressed_file = os.path.join(onnx_models, '{}.tar.gz'.format(model))
         url = 'https://s3.amazonaws.com/download.onnx/models/{}.tar.gz'.format(model)
-        if not os.path.exists(compressed_file):
+        if refresh or not os.path.exists(compressed_file):
             if not os.path.exists(onnx_models):
                 os.makedirs(onnx_models)
             print('Downloading {}...'.format(url), end='')
@@ -258,7 +258,8 @@ def _download_onnx_data(model, filename):
                     break
                 hash.update(data)
             if hash.hexdigest() != expected_sha256[model]:
-                raise RuntimeError("Invalid checksum on downloaded file from {}".format(url))
+                print("Warning: unexpected checksum on file {}: {}".format(
+                    compressed_file, hash.hexdigest()))
         print('Done')
         print('Extracting {}...'.format(compressed_file), end='')
         sys.stdout.flush()
@@ -276,8 +277,8 @@ def _download_onnx_data(model, filename):
     return os.path.join(model_dir, filename)
 
 
-def setup_onnx_input(model):
-    full_path = _download_onnx_data(model, 'test_data_0.npz')
+def setup_onnx_input(model, refresh=False):
+    full_path = _download_onnx_data(model, 'test_data_0.npz', refresh=refresh)
     return np.load(full_path)['inputs'][0]
 
 
@@ -428,6 +429,8 @@ def make_parser():
         help="Print a stack trace if an exception occurs.")
     parser.add_argument(
         '--onnx-cpu', action='store_true', help='Use CPU instead of GPU (only used by ONNX)')
+    parser.add_argument(
+        '--refresh-onnx-data', action='store_true', help='Download ONNX data even if cached')
     all_supported_networks = set()
     for _, networks in SUPPORTED_NETWORKS.items():
         all_supported_networks = all_supported_networks.union(networks)
@@ -547,7 +550,7 @@ def main():
                 # Setup
                 if frontend_name == 'onnx':
                     # No y_train b/c PlaidBench does not support ONNX training
-                    x = setup_onnx_input(args.module)
+                    x = setup_onnx_input(args.module, refresh=args.refresh_onnx_data)
                 elif network == 'imdb_lstm':
                     x, y_train = setup_imdb(args.train, epoch_size, batch_size)
                 else:
