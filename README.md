@@ -10,6 +10,10 @@ Plaidbench supports:
 
 Plaidbench was created to quantify the performance of [PlaidML](http://www.github.com/plaidml/plaidml) relative to other frameworks' backends across a variety of hardware, and to help determine which networks provide acceptable performance in various application deployment scenarios.
 
+## Current Status
+
+[![Build Status](https://travis-ci.org/plaidml/plaidbench.svg?branch=master)](https://travis-ci.org/plaidml/plaidbench)
+
 ## Installation
 
 To get the basic framework and command-line interface:
