@@ -118,7 +118,10 @@ class Model(core.Model):
 
     def compile(self):
         device = 'CPU' if self.frontend.cpu else self.frontend.backend_info.gpu_device
-        self.rep = self.backend.prepare(self.model, device=device)
+        kwargs = {}
+        if device:
+            kwargs['device'] = device
+        self.rep = self.backend.prepare(self.model, **kwargs)
 
     def run(self):
         return self.rep.run([self.x[:self.params.batch_size]])
@@ -168,7 +171,7 @@ BackendInfo = namedtuple('BackendInfo',
 @click.option(
     '--plaid',
     'backend',
-    flag_value=BackendInfo('plaid', 'onnx_plaidml.backend', 'GPU', True, ['onnx-plaidml']),
+    flag_value=BackendInfo('plaid', 'onnx_plaidml.backend', None, True, ['onnx-plaidml']),
     default=True,
     help='Use PlaidML as the backend')
 @click.option(
