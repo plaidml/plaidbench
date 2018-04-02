@@ -4,23 +4,32 @@ os:
   # - osx ren-eable once before install is right for osx
 python:
   - "2.7"
-  - "3.5"
-  - "3.6"
+  # Enable 3.6 once 2.7 is working
+
+dist: trusty
+sudo: required
+
+env:
+  global:
+    - PB_VERSION=2.6.1
+    - PLAIDML_DEVICE_IDS=opencl_cpu.0
+    - PLAIDML_EXPERIMENTAL=1
+    - PLAIDML_TELEMETRY=0
 
 before_install:
-  - echo "deb [arch=amd64] http://storage.googleapis.com/bazel-apt stable jdk1.8" | sudo tee /etc/apt/sources.list.d/bazel.list
-  - curl https://bazel.build/bazel-release.pub.gpg | sudo apt-key add -
-  - sudo apt-get update -q   
-  - sudo apt-get install openjdk-8-jdk bazel bison g++ wget -y
-  - wget https://storage.googleapis.com/external_build_repo/opencl_runtime_16.1.1_x64_ubuntu_6.4.0.25.tgz
-  - tar xzvf opencl_runtime_16.1.1_x64_ubuntu_6.4.0.25.tgz
-  - pushd opencl_runtime_16.1.1_x64_ubuntu_6.4.0.25
-  - sudo ./install.sh --cli-mode --silent ../.intel-ocl-silent
-  - popd
+  - ./.travis/before_install.sh
 
-install:
-  - pip install -r requirements.txt
+before_script:
+  - python setup.py install
 
 script:
-  - PLAIDML_EXPERIMENTAL=1 python plaidbench.py mobilenet
-  - PLAIDML_EXPERIMENTAL=1 python plaidbench.py mobilenet --train -n 64
+  - plaidbench keras mobilenet
+  - plaidbench onnx squeezenet
+
+cache:
+  - pip
+  - timeout: 600
+  - directories:
+    - $HOME/.cache
+    - $HOME/.keras
+    - $HOME/.onnx
