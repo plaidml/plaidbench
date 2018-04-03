@@ -1,0 +1,29 @@
+image: Visual Studio 2017
+platform: x64
+
+environment:
+  CONDA_PREFIX: C:\Miniconda36-x64
+  PLAIDML_DEVICE_IDS: opencl_cpu.0
+  PLAIDML_EXPERIMENTAL: 1
+  PLAIDML_TELEMETRY: 0
+
+install:
+  - cmd: if not exist opencl_runtime_16.1.2_x64_setup.msi appveyor DownloadFile http://registrationcenter-download.intel.com/akdlm/irc_nas/12512/opencl_runtime_16.1.2_x64_setup.msi
+  - cmd: msiexec /i opencl_runtime_16.1.2_x64_setup.msi /qn /quiet /norestart
+  - cmd: PATH=C:\Miniconda36-x64;C:\Miniconda36-x64\Scripts;C:\Miniconda36-x64\Library\bin;%PATH%
+  - cmd: conda install -y -c conda-forge protobuf numpy
+  - cmd: pip install "setuptools>=39"
+  - cmd: pip install plaidml-keras onnx-plaidml
+
+build_script:
+  - cmd: python setup.py install
+
+test_script:
+  - cmd: cd C:\projects
+  - cmd: plaidbench keras mobilenet
+  - cmd: plaidbench onnx squeezenet
+
+cache:
+  - opencl_runtime_16.1.2_x64_setup.msi
+  - '%USERPROFILE%\.keras'
+  - '%USERPROFILE%\.onnx'

@@ -13,6 +13,7 @@ Plaidbench was created to quantify the performance of [PlaidML](http://www.githu
 ## Current Status
 
 [![Build Status](https://travis-ci.org/plaidml/plaidbench.svg?branch=master)](https://travis-ci.org/plaidml/plaidbench)
+[![Build status](https://ci.appveyor.com/api/projects/status/307lhqu7kp2m0j0v?svg=true)](https://ci.appveyor.com/project/earhart/plaidbench)
 
 ## Installation
 
