@@ -4,7 +4,7 @@ os:
   # - osx ren-eable once before install is right for osx
 python:
   - "2.7"
-  # Enable 3.6 once 2.7 is working
+  - "3.6"
 
 dist: trusty
 sudo: required
