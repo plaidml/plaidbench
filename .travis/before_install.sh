@@ -22,7 +22,9 @@ if [ "$TRAVIS_OS_NAME" == "linux" ]; then
 
 elif [ "$TRAVIS_OS_NAME" == "osx" ]; then
   brew install protobuf
-  if [ "$PYTHON_VERSION" == "python3" ]; then
+  if [ "$PYTHON" == "python2" ]; then
+    brew install python@2 || brew link --overwrite python@2
+  elif [ "$PYTHON" == "python3" ]; then
     brew upgrade python
   fi
 else
