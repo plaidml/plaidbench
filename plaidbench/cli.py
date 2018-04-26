@@ -40,20 +40,21 @@ class _PlaidbenchCommand(click.MultiCommand):
         return _PlaidbenchCommand._FRONTENDS.keys()
 
     def get_command(self, ctx, name):
-        fname = _PlaidbenchCommand._FRONTENDS[name]
+        try:
+            fname = _PlaidbenchCommand._FRONTENDS[name]
+        except KeyError:
+            return None
         mod = {'__file__': fname}
         with open(fname) as f:
             code = compile(f.read(), fname, 'exec')
-            try:
-                eval(code, mod)
-            except:
-                six.raise_from(core.ExtrasNeeded(['plaidbench[{}]'.format(name)]), None)
+            eval(code, mod)
         return mod['cli']
 
 
 @click.command(cls=_PlaidbenchCommand)
 @click.option('-v', '--verbose', count=True)
-@click.option('-n', '--examples', type=int, default=None, help='Number of examples to use')
+@click.option(
+    '-n', '--examples', type=int, default=None, help='Number of examples to use (over all epochs)')
 @click.option(
     '--blanket-run',
     is_flag=True,
@@ -66,14 +67,15 @@ class _PlaidbenchCommand(click.MultiCommand):
     help='Destination directory for results output')
 @click.option(
     '--callgrind/--no-callgrind', default=False, help='Invoke callgrind during timing runs')
-@click.option('--epochs', type=int, default=2, help="Number of epochs per test")
+@click.option('--epochs', type=int, default=1, help="Number of epochs per test")
 @click.option('--batch-size', type=int, default=1)
+@click.option('--warmup/--no-warmup', default=True, help='Do warmup runs before main timing')
 @click.option(
     '--print-stacktraces/--no-print-stacktraces',
     default=False,
     help='Print a stack trace if an exception occurs')
 @click.pass_context
-def plaidbench(ctx, verbose, examples, blanket_run, result, callgrind, epochs, batch_size,
+def plaidbench(ctx, verbose, examples, blanket_run, result, callgrind, epochs, batch_size, warmup,
                print_stacktraces):
     """Vertex.AI Machine Learning Benchmarks
     
@@ -94,4 +96,5 @@ def plaidbench(ctx, verbose, examples, blanket_run, result, callgrind, epochs, b
         plaidml._internal_set_vlog(verbose)
     runner.verbose = verbose
     runner.callgrind = callgrind
+    runner.warmup = warmup
     runner.print_stacktraces = print_stacktraces

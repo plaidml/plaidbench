@@ -23,7 +23,7 @@ import plaidml
 from plaidbench import core
 
 
-def setup_cifar(train, epoch_size, batch_size):
+def setup_cifar(train, epoch_size):
     # Setup
     if train:
         # Training setup
@@ -38,7 +38,7 @@ def setup_cifar(train, epoch_size, batch_size):
         # Inference setup
         this_dir = os.path.dirname(os.path.abspath(__file__))
         cifar_path = os.path.join(this_dir, 'cifar16.npy')
-        x_train = np.load(cifar_path).repeat(1 + batch_size // 16, axis=0)[:batch_size]
+        x_train = np.load(cifar_path).repeat(1 + epoch_size // 16, axis=0)[:epoch_size]
         y_train = None
     return x_train, y_train
 
@@ -47,7 +47,7 @@ imdb_max_features = 20000
 imdb_max_length = 80
 
 
-def setup_imdb(train, epoch_size, batch_size):
+def setup_imdb(train, epoch_size):
     # Setup
     if train:
         # Training setup
@@ -62,7 +62,7 @@ def setup_imdb(train, epoch_size, batch_size):
         # Inference setup
         this_dir = os.path.dirname(os.path.abspath(__file__))
         imdb_path = os.path.join(this_dir, 'imdb16.npy')
-        x_train = np.load(imdb_path).repeat(1 + batch_size // 16, axis=0)[:batch_size]
+        x_train = np.load(imdb_path).repeat(1 + epoch_size // 16, axis=0)[:epoch_size]
         y_train = None
     return x_train, y_train
 
@@ -75,11 +75,9 @@ class Model(core.Model):
 
     def setup(self):
         if self.params.network_name == 'imdb_lstm':
-            x, y_train = setup_imdb(self.frontend.train, self.params.epoch_size,
-                                    self.params.batch_size)
+            x, y_train = setup_imdb(self.frontend.train, self.params.epoch_size)
         else:
-            x, y_train = setup_cifar(self.frontend.train, self.params.epoch_size,
-                                     self.params.batch_size)
+            x, y_train = setup_cifar(self.frontend.train, self.params.epoch_size)
         self.x = x
         self.y_train = y_train
 
@@ -120,8 +118,14 @@ class Model(core.Model):
 
 class InferenceModel(Model):
 
-    def run(self):
-        return self.model.predict(x=self.x, batch_size=self.params.batch_size)
+    def run(self, once=False, warmup=False):
+        if once:
+            epoch_size = self.params.batch_size
+        elif warmup:
+            epoch_size = self.params.warmups
+        else:
+            epoch_size = self.params.epoch_size
+        return self.model.predict(x=self.x[:epoch_size], batch_size=self.params.batch_size)
 
     def golden_output(self):
         return (self.keras_golden_output('infer'), core.Precision.INFERENCE)
@@ -130,23 +134,35 @@ class InferenceModel(Model):
 class TrainingModel(Model):
 
     def validate(self):
-        if self.params.epochs >= self.params.examples:
-            raise ValueError('The number of epochs must be less than the number of examples.')
-        if self.params.batch_size >= (self.params.examples // self.params.epochs):
-            raise ValueError(
-                'The number of examples per epoch must be greater than the batch size.')
         if self.params.examples % self.params.epochs != 0:
             raise ValueError('The number of examples must be divisible by the number of epochs.')
+        if self.params.examples < self.params.epochs:
+            raise ValueError(
+                'The number of examples must be greater than or equal to the number of epochs (examples-per-epoch must be >= 1).'
+            )
+        if (self.params.examples // self.params.epochs) < self.params.batch_size:
+            raise ValueError(
+                'The number of examples per epoch must be greater than or equal to the batch size.'
+            )
         if (self.params.examples // self.params.epochs) % self.params.batch_size != 0:
             raise ValueError(
                 'The number of examples per epoch is not divisible by the batch size.')
 
-    def run(self):
+    def run(self, once=False, warmup=False):
+        if once:
+            epoch_size = self.params.batch_size
+            epochs = 1
+        elif warmup:
+            epoch_size = self.params.warmups
+            epochs = 1
+        else:
+            epoch_size = self.params.epoch_size
+            epochs = self.params.epochs
         history = self.model.fit(
-            x=self.x,
-            y=self.y_train,
+            x=self.x[:epoch_size],
+            y=self.y_train[:epoch_size],
             batch_size=self.params.batch_size,
-            epochs=1,
+            epochs=epochs,
             shuffle=False,
             initial_epoch=0)
         return np.array(history.history['loss'])
@@ -176,7 +192,7 @@ class Frontend(core.Frontend):
         return [1, 4, 8, 16]
 
 
-@click.command()
+@click.command(cls=core.FrontendCommand, networks=Frontend.NETWORK_NAMES)
 @click.option(
     '--plaid', 'backend', flag_value='plaid', default=True, help='Use PlaidML as the backend')
 @click.option(
@@ -197,12 +213,12 @@ def cli(ctx, backend, fp16, train, networks):
         try:
             runner.reporter.configuration['plaid'] = importlib.import_module('plaidml').__version__
             importlib.import_module('plaidml.keras').install_backend()
-        except ModuleNotFoundError:
+        except ImportError:
             raise core.ExtrasNeeded(['plaidml-keras'])
     elif backend == 'tensorflow':
         try:
             importlib.import_module('keras.backend')
-        except ModuleNotFoundError:
+        except ImportError:
             raise core.ExtrasNeeded(['keras', 'tensorflow'])
 
     if fp16:

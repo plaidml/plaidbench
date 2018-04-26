@@ -59,9 +59,10 @@ def make_parser():
         help="Destination directory for results output.")
     parser.add_argument(
         '--callgrind', action='store_true', help="Invoke callgrind during timing runs.")
+    parser.add_argument('--no-warmup', action='store_true', help="Skip the warmup runs.")
     parser.add_argument(
         '-n', '--examples', type=int, default=None, help="Number of examples to use.")
-    parser.add_argument('--epochs', type=int, default=2, help="Number of epochs per test.")
+    parser.add_argument('--epochs', type=int, default=1, help="Number of epochs per test.")
     parser.add_argument('--batch-size', type=int, default=1)
     parser.add_argument(
         '--train', action='store_true', help="Measure training performance instead of inference.")
@@ -107,6 +108,8 @@ def main():
         argv.append('--batch-size={}'.format(args.batch_size))
     if args.blanket_run:
         argv.append('--blanket-run')
+    if args.no_warmup:
+        argv.append('--no-warmup')
     if args.print_stacktraces:
         argv.append('--print-stacktraces')
 

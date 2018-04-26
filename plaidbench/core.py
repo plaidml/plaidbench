@@ -39,6 +39,17 @@ class ExtrasNeeded(click.ClickException):
         self.extras = extras
 
 
+class FrontendCommand(click.Command):
+
+    def __init__(self, networks, *args, **kwargs):
+        super(FrontendCommand, self).__init__(*args, **kwargs)
+        self.__networks = networks
+
+    def format_epilog(self, ctx, formatter):
+        with formatter.section('Supported Networks'):
+            formatter.write_text(', '.join(self.__networks))
+
+
 class Precision(enum.Enum):
     TRAINING = 0.2
     INFERENCE = 5e-04
@@ -83,7 +94,8 @@ class Output(object):
         self.precision = 'untested'
 
 
-class Params(namedtuple('Params', ['batch_size', 'epochs', 'examples', 'network_name'])):
+class Params(
+        namedtuple('Params', ['batch_size', 'epochs', 'examples', 'warmups', 'network_name'])):
     """Parameters applied to a network during benchmarking."""
     __slots__ = ()
 
@@ -95,10 +107,10 @@ class Params(namedtuple('Params', ['batch_size', 'epochs', 'examples', 'network_
 class ExplicitParamBuilder(object):
     """Builds Params for an explicit benchmark run."""
 
-    def __init__(self, batch_size, epochs, examples):
+    def __init__(self, batch_size, epochs, examples, warmups=32):
         if not examples:
             examples = 1024
-        self.params = Params(batch_size, epochs, examples, None)
+        self.params = Params(batch_size, epochs, examples, warmups, None)
 
     def __call__(self, frontend, network_names):
         if not network_names:
@@ -112,7 +124,7 @@ class BlanketParamBuilder(object):
     """Builds Params for a blanket benchmark run."""
 
     def __init__(self, epochs):
-        self.params = Params(None, epochs, 256, None)
+        self.params = Params(None, epochs, 256, 32, None)
 
     def __call__(self, frontend, network_names):
         if network_names:
@@ -205,6 +217,7 @@ class Runner(object):
         self.param_builder = param_builder
         self.print_stacktraces = False
         self.reporter = reporter
+        self.warmup = True
 
     def run(self, frontend, network_names):
         """Runs a set of benchmarks.
@@ -234,23 +247,25 @@ class Runner(object):
 
                 model.setup()
 
+                click.echo('Compiling network...')
                 compile_stop_watch.start_outer()
                 stop_watch.start_outer()
 
                 model.compile()
-                model_output = model.run()
+                model_output = model.run(once=True)
 
                 compile_stop_watch.stop()
 
                 # Run a few more warmups -- this seems to improve the variability of the
                 # benchmark results.
-                for _ in range(32 // params.batch_size + 1):
-                    model_output = model.run()
+                if self.warmup:
+                    click.echo('Warming up ...')
+                    model.run(warmup=True)
 
-                for _ in range(params.examples // params.batch_size):
-                    stop_watch.start()
-                    model_output = model.run()
-                    stop_watch.stop()
+                click.echo('Main timing')
+                stop_watch.start()
+                model.run()
+                stop_watch.stop()
 
                 # Record stopwatch times
                 execution_duration = stop_watch.elapsed()
@@ -378,9 +393,19 @@ class Model(object):
         pass
 
     @abstractmethod
-    def run(self):
+    def run(self, once, warmup):
         """Runs the model, e.g. performing an inference or training batch.
-        
+
+        Args:
+            once (Boolean): If True, runs with a number of examples equal to the batch size. This
+            is used in the very first run of a network for network compilation timing.
+
+            warmup (Boolean): If True, uses the warmup parameter to determine the number of
+            examples. This is used to prepare the graphics card and other variable-performance
+            elements for the main timing run, ensuring that they dedicate the necessary resources
+            to accurately time a heavy workload, without taking the time needed to run a full set
+            of examples.
+
         Returns:
             The model outputs - if inference, the inference output; if training, the training loss.
         """

@@ -16,13 +16,13 @@ from collections import namedtuple
 import hashlib
 import importlib
 import os
+import six
 import sys
 import tarfile
 
 import click
 import numpy as np
-import onnx
-import onnx.numpy_helper
+import plaidml
 from six.moves.urllib.request import urlretrieve
 
 from plaidbench import core
@@ -71,9 +71,8 @@ def download_onnx_data(model, filename, use_cached_data=True):
                     break
                 hash.update(data)
             if hash.hexdigest() != expected_sha256[model]:
-                raise RuntimeError(
-                    "Invalid checksum on downloaded file from {}; got {}, expected {}".format(
-                        url, hash.hexdigest(), expected_sha256[model]))
+                click.echo('Warning: unexpected checksum on file {}: {}'.format(
+                    compressed_file, hash.hexdigest()))
         click.echo('Done')
         click.echo('Extracting {}...'.format(compressed_file), nl=False)
         try:
@@ -95,11 +94,12 @@ class Model(core.Model):
     def __init__(self, frontend, params):
         self.frontend = frontend
         self.params = params
+        self.onnx = frontend.onnx
 
     def setup(self):
         try:
             self.backend = importlib.import_module(self.frontend.backend_info.module_name)
-        except ModuleNotFoundError:
+        except ImportError:
             raise core.ExtrasNeeded(self.frontend.backend_info.requirements)
         try:
             data_path = download_onnx_data(self.params.network_name, 'test_data_0.npz',
@@ -109,12 +109,12 @@ class Model(core.Model):
             # See if we can access it as a proto.
             data_path = download_onnx_data(self.params.network_name,
                                            os.path.join('test_data_set_0', 'input_0.pb'))
-            tensor = onnx.TensorProto()
+            tensor = self.onnx.TensorProto()
             with open(data_path, 'rb') as f:
                 tensor.ParseFromString(f.read())
-            self.x = onnx.numpy_helper.to_array(tensor)
+            self.x = self.onnx.numpy_helper.to_array(tensor)
         model_path = download_onnx_data(self.params.network_name, 'model.onnx')
-        self.model = onnx.load(model_path)
+        self.model = self.onnx.load(model_path)
 
     def compile(self):
         device = 'CPU' if self.frontend.cpu else self.frontend.backend_info.gpu_device
@@ -123,8 +123,16 @@ class Model(core.Model):
             kwargs['device'] = device
         self.rep = self.backend.prepare(self.model, **kwargs)
 
-    def run(self):
-        return self.rep.run([self.x[:self.params.batch_size]])
+    def run(self, once=False, warmup=False):
+        if once:
+            examples = self.params.batch_size
+        elif warmup:
+            examples = self.params.warmups
+        else:
+            examples = self.params.examples
+        for i in range(examples // self.params.batch_size):
+            partial_result = self.rep.run([self.x[:self.params.batch_size]])
+        return partial_result
 
     def golden_output(self):
         try:
@@ -134,10 +142,10 @@ class Model(core.Model):
             # See if we can access it as a proto.
             data_path = download_onnx_data(self.params.network_name,
                                            os.path.join('test_data_set_0', 'output_0.pb'))
-            tensor = onnx.TensorProto()
+            tensor = self.onnx.TensorProto()
             with open(data_path, 'rb') as f:
                 tensor.ParseFromString(f.read())
-            return (onnx.numpy_helper.to_array(tensor), core.Precision.INFERENCE)
+            return (self.onnx.numpy_helper.to_array(tensor), core.Precision.INFERENCE)
 
 
 class Frontend(core.Frontend):
@@ -153,11 +161,12 @@ class Frontend(core.Frontend):
         'vgg19',
     ]
 
-    def __init__(self, cpu, use_cached_data, backend_info):
+    def __init__(self, cpu, use_cached_data, backend_info, onnx):
         super(Frontend, self).__init__(Frontend.NETWORK_NAMES)
         self.cpu = cpu
         self.use_cached_data = use_cached_data
         self.backend_info = backend_info
+        self.onnx = onnx
 
     def model(self, params):
         return Model(self, params)
@@ -167,7 +176,7 @@ BackendInfo = namedtuple('BackendInfo',
                          ['name', 'module_name', 'gpu_device', 'is_plaidml', 'requirements'])
 
 
-@click.command()
+@click.command(cls=core.FrontendCommand, networks=Frontend.NETWORK_NAMES)
 @click.option(
     '--plaid',
     'backend',
@@ -192,7 +201,15 @@ BackendInfo = namedtuple('BackendInfo',
 def cli(ctx, backend, cpu, use_cached_data, networks):
     """Benchmarks ONNX models."""
     runner = ctx.ensure_object(core.Runner)
+    try:
+        importlib.import_module(backend.module_name)
+    except ImportError:
+        six.raise_from(core.ExtrasNeeded(backend.requirements), None)
     if backend.is_plaidml:
-        runner.reporter.configuration['plaid'] = importlib.import_module('plaidml').__version__
-    frontend = Frontend(cpu, use_cached_data, backend)
+        runner.reporter.configuration['plaid'] = plaidml.__version__
+
+    onnx = importlib.import_module('onnx')
+    importlib.import_module('onnx.numpy_helper')
+
+    frontend = Frontend(cpu, use_cached_data, backend, onnx)
     return runner.run(frontend, networks)
