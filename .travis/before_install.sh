@@ -21,12 +21,12 @@ if [ "$TRAVIS_OS_NAME" == "linux" ]; then
   cd $ocl_dir && sudo ./install.sh --cli-mode --silent $silent_file && cd -
 
 elif [ "$TRAVIS_OS_NAME" == "osx" ]; then
+  brew install protobuf
   if [ "$PYTHON" == "python2" ]; then
     brew install python@2 || brew link --overwrite python@2
   elif [ "$PYTHON" == "python3" ]; then
     brew upgrade python
   fi
-  brew install protobuf
 else
   echo Unknown OS: $TRAVIS_OS_NAME
   exit 1

@@ -173,7 +173,19 @@ class TrainingModel(Model):
 
 class Frontend(core.Frontend):
     NETWORK_NAMES = [
-        'inception_v3', 'mobilenet', 'resnet50', 'vgg16', 'vgg19', 'xception', 'imdb_lstm'
+        'densenet121',
+        'densenet169',
+        'densenet201',
+        'inception_resnet_v2',
+        'inception_v3',
+        'mobilenet',
+        'nasnet_large',
+        'nasnet_mobile',
+        'resnet50',
+        'vgg16',
+        'vgg19',
+        'xception',
+        'imdb_lstm',
     ]
 
     def __init__(self, backend_name, fp16, train):

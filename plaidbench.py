@@ -19,7 +19,21 @@ import argparse
 import plaidbench.cli
 
 SUPPORTED_NETWORKS = {
-    'keras': ['inception_v3', 'mobilenet', 'resnet50', 'vgg16', 'vgg19', 'xception', 'imdb_lstm'],
+    'keras': [
+        'densenet121',
+        'densenet169',
+        'densenet201',
+        'imdb_lstm',
+        'inception_resnet_v2',
+        'inception_v3',
+        'mobilenet',
+        'nasnet_large',
+        'nasnet_mobile',
+        'resnet50',
+        'vgg16',
+        'vgg19',
+        'xception',
+    ],
     'onnx': [
         'bvlc_alexnet',
         'densenet121',
