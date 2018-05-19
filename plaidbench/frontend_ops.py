@@ -35,14 +35,11 @@ from plaidbench import core
 from plaidbench.networks.ops import dense, conv2d
 
 MS_OPS = {
-    # need to add strides and possibly dialation if TC is coo "resnetup" : lambda p: conv2d.Conv2d(p, 64, 56, 56, 643)
     "conv2d_odd_sml" : lambda p: conv2d.Conv2d(p, 16, 57, 57, 34, 3, 2),
     "conv2d_odd_med" : lambda p: conv2d.Conv2d(p, 133, 16, 16, 266, 4, 4),
     "conv2d_resnet50_med" : lambda p: conv2d.Conv2d(p, 256, 14, 14, 1024, 1, 1),
     "dense_odd_sml" : lambda p: dense.Dense(p, 122, 98, 179),
     "dense_odd_med" : lambda p: dense.Dense(p, 110, 512, 313),
-    # need to add fusion support into TVM
-    #"dense_med_relu" : lambda p: dense.Dense(p, 110, 512, 313, 'relu'),
 }
 
 LARGE_OPS = {
