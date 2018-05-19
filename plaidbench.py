@@ -111,7 +111,7 @@ def main():
     if args.verbose:
         argv.append('-{}'.format('v' * args.verbose))
     if args.result:
-        argv.append('--result={}'.format(args.result))
+        argv.append('--results={}'.format(args.result))
     if args.callgrind:
         argv.append('--callgrind')
     if args.examples:

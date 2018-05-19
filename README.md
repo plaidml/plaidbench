@@ -11,6 +11,8 @@ against them, you'll need to have them installed in your virtualenv
 ## Methodology
 As we developed support for each backend (tc, tvm, plaid), great care was taken to ensure the results we capture are accurate. `nvprof` was used to manually compare results. 
 
+Files of interest are `frontend_ops.py`, `networks/ops/dense.py`, `networks/ops/conv2d.py`
+
 ## Instructions
 ```
 pip install plaidml-keras
