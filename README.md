@@ -9,7 +9,10 @@ against them, you'll need to have them installed in your virtualenv
 *Feedback is very welcome, especially if we're using tc or tvm incorrectly*
 
 ## Methodology
-As we developed support for each backend (tc, tvm, plaid), great care was taken to ensure the results we capture are accurate. `nvprof` was used to manually compare results. 
+
+As we developed support for each backend (tc, tvm, plaid), great care was taken to ensure the results we capture are accurate. `nvprof` was used to manually compare results (see below).
+
+The relevant files are `frontend_ops.py`, `networks/ops/dense.py`, `networks/ops/conv2d.py`
 
 Files of interest are `frontend_ops.py`, `networks/ops/dense.py`, `networks/ops/conv2d.py`
 
