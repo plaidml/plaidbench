@@ -35,14 +35,11 @@ from plaidbench import core
 from plaidbench.networks.ops import dense, conv2d
 
 MS_OPS = {
-    # need to add strides and possibly dialation if TC is coo "resnetup" : lambda p: conv2d.Conv2d(p, 64, 56, 56, 643)
     "conv2d_odd_sml" : lambda p: conv2d.Conv2d(p, 16, 57, 57, 34, 3, 2),
     "conv2d_odd_med" : lambda p: conv2d.Conv2d(p, 133, 16, 16, 266, 4, 4),
     "conv2d_resnet50_med" : lambda p: conv2d.Conv2d(p, 256, 14, 14, 1024, 1, 1),
     "dense_odd_sml" : lambda p: dense.Dense(p, 122, 98, 179),
     "dense_odd_med" : lambda p: dense.Dense(p, 110, 512, 313),
-    # need to add fusion support into TVM
-    #"dense_med_relu" : lambda p: dense.Dense(p, 110, 512, 313, 'relu'),
 }
 
 LARGE_OPS = {
@@ -117,21 +114,16 @@ class Model(core.Model):
 
     def run_tc(self, loops):
         import torch
-        stop_watch = core.StopWatch(False)
-        stop_watch.start()
         for _ in range(loops):
             self.model(*self.op.get_dataset(), cache=self.op.get_tc_cache())
         torch.cuda.synchronize()
-        stop_watch.stop()
-        return stop_watch.elapsed()
 
 
-    def run_tf(self, loops):
-        import tensorflow as tf
-        with tf.Session() as sess:
-            sess.run(tf.global_variables_initializer())
-            for _ in range(loops):
-                sess.run(self.model)
+    def run_pyt(self, loops):
+        import torch
+        for _ in range(loops):
+            self.model(*self.op.get_dataset())
+        torch.cuda.synchronize()
     
 
     def run_tvm(self, loops):
@@ -144,7 +136,7 @@ class Model(core.Model):
     def golden_output(self):
         raise core.NoCorrectnessDesired()
 
-class Frontend(core.Frontend):
+class Frontend(core.Frontend): 
     NETWORK_NAMES = sorted(OPS.keys())
 
     def __init__(self, backend, networks, backend_opts):
@@ -202,7 +194,7 @@ class Frontend(core.Frontend):
 @click.option(
     '--tc', 'backend', flag_value='tc', help='Use TensorComprehensions as the backend')
 @click.option(
-    '--tf', 'backend', flag_value='tf', help='Use tensorflow as the backend')
+    '--pyt', 'backend', flag_value='pyt', help='Use pytorch as the backend')
 @click.argument('networks', nargs=-1, type=click.Choice(Frontend.NETWORK_NAMES))
 @click.option('--large-ops/--no-large-ops', default=True)  
 @click.option('--tc-autotune/--no-tc-autotune', default=True)  

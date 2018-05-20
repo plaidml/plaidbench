@@ -42,7 +42,6 @@ class Conv2d(op.Op):
         from keras.layers import Conv2D, Input
         from keras.models import Model
         inp = Input(name='data', shape=(self.h, self.w, self.ci))
-        # No bias cause TVM doesn't support it
         op = Conv2D(self.co, (self.i, self.j), data_format='channels_last', use_bias=False)(inp)
         return Model(inp, op, name=self.get_key())                                               
 
@@ -58,7 +57,7 @@ class Conv2d(op.Op):
         return path
 
     def create_dataset_tc(self):  
-        # inp, weights, biases
+        # inp, weights
         import torch
         return torch.randn(self.bs, self.ci, self.h,self.w).cuda(), torch.randn(self.co, self.ci, self.i, self.j).cuda()
 
@@ -75,18 +74,17 @@ class Conv2d(op.Op):
             convolution.autotune(inp, kern, cache=self.get_tc_cache(), options=tc.Options("conv"),generations=self.params.backend_opts["tc_at_generations"], pop_size=self.params.backend_opts["tc_at_population"],elites=1,threads=8)
         return convolution
 
-    def create_dataset_tf(self):
-        import tensorflow as tf
-        # tf Graph input
-        I = tf.Variable(tf.random_normal([self.bs, self.h, self.w, self.ci]))
-        K = tf.Variable(tf.random_normal([self.i, self.j, self.ci, self.co]))
-        return I, K
+    def create_dataset_pyt(self):
+        return self.create_dataset_tc()
 
-    def build_model_tf(self):
-        import tensorflow as tf
-        I, K = self.get_dataset()
+    def build_model_pyt(self):
+        import torch
         # Initialize the variables (i.e. assign their default value)
-        return tf.nn.conv2d(I, K, [1,1,1,1], "VALID") 
+        #torch.nn.Conv2d(in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True
+        _, W = self.get_dataset()
+        conv = torch.nn.Conv2d(self.ci, self.co, (self.i, self.j), bias=False).cuda()
+        conv.weights = W
+        return lambda i, w: conv(i)
 
     def create_dataset_tvm(self):
         import tvm
@@ -97,14 +95,25 @@ class Conv2d(op.Op):
         i_shape = get_const_tuple(I.shape)
         w_shape = get_const_tuple(W.shape)
         dtype = I.dtype
-        i_np = np.random.uniform(size=i_shape).astype(dtype)
-        w_np = np.random.uniform(size=w_shape).astype(dtype)
+        i_np = np.zeros(shape=i_shape).astype(dtype)
+        w_np = np.zeros(shape=w_shape).astype(dtype)
         return I, W, i_np, w_np
+    
+    def build_model_tvm(self):
+        # Dummy build for timing
+        import topi
+        import tvm
+        I, W, _, _ = self.get_dataset()
+        device = self.params.backend_opts['tvm_driver']
+        with tvm.target.create(device): 
+            O = topi.nn.conv2d(I, W, 1, 1, layout='NCHW')
+            tsched = topi.cuda.conv2d_nchw.schedule_conv2d_small_batch([O])
+            with tvm.build_config(auto_unroll_max_step=1400, unroll_explicit=device != 'cuda'):
+                return tvm.build(tsched, [I, W], device, name=self.get_key())
 
     def run_model_tvm(self, loops):
         # TODO: make this more reusable. TVM doesn't fit well with the abstractions as they are because of its use of contexts
         import topi
-        from topi.util import get_const_tuple
         import tvm
         from plaidbench import core
         device = self.params.backend_opts['tvm_driver']

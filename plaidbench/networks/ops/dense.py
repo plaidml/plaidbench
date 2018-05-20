@@ -79,25 +79,17 @@ class Dense(op.Op):
         matmul.autotune(inp, wgt, bias, cache=self.get_tc_cache(), options=tc.Options("mlp"),generations=self.params.backend_opts['tc_at_generations'], pop_size=self.params.backend_opts['tc_at_population'],elites=1,threads=8)
         return matmul
 
-    def create_dataset_tf(self):
-        with tf.device('/gpu:0'):
-            import tensorflow as tf
-            # tf Graph input
-            I = tf.constant([self.bs * self.i, self.k]) 
-            J = tf.constant([self.k, self.j])
-        return I, J
+    def create_dataset_pyt(self):
+        return self.create_dataset_tc()
 
-    def build_model_tf(self):
-        import tensorflow as tf
-        I, J = self.get_dataset()
-        # Initialize the variables (i.e. assign their default value)
-        return tf.matmul(I, J) 
-
+    def build_model_pyt(self):
+        import torch
+        return lambda inp, wgt, bias: torch.matmul(inp, wgt).cuda() + bias
 
     def create_dataset_tvm(self):
         import tvm
         from topi.util import get_const_tuple
-        # TVM does not support batched matmuls, so we fake it
+        # TVM does not support batched matmul, so we fake it
         I = tvm.placeholder((self.bs * self.i, self.k), name='I')
         W = tvm.placeholder((self.j, self.k), name='W')
         B = tvm.placeholder((self.j,), name='B')
@@ -106,15 +98,26 @@ class Dense(op.Op):
         w_shape = get_const_tuple(W.shape)
         b_shape = get_const_tuple(B.shape)
         dtype = I.dtype
-        i_np = np.random.uniform(size=i_shape).astype(dtype)
-        w_np = np.random.uniform(size=w_shape).astype(dtype)
-        b_np = np.random.uniform(size=b_shape).astype(dtype)
+        i_np = np.zeros(shape=i_shape).astype(dtype)
+        w_np = np.zeros(shape=w_shape).astype(dtype)
+        b_np = np.zeros(shape=b_shape).astype(dtype)
         return I, W, B, i_np, w_np, b_np
+    
+    def build_model_tvm(self):
+        # This is a dummy build of the network that we have to repeat later, or TVM seems to do no work.
+        import topi
+        import tvm
+        I, W, B, _, _, _ = self.get_dataset()
+        device = self.params.backend_opts['tvm_driver']
+        with tvm.target.create(device): 
+            O = topi.nn.dense_default(I, W, B)
+            t_sched = topi.cuda.dense.schedule_dense([O])
+            with tvm.build_config(auto_unroll_max_step=1400, unroll_explicit=device != 'cuda'):
+                return tvm.build(t_sched, [I, W, B], device, name=self.get_key())
 
     def run_model_tvm(self, loops):
         # Derived from here, taking some shortcuts: https://github.com/dmlc/tvm/blob/master/topi/tests/python/test_topi_conv2d_nchw.py
         import topi
-        from topi.util import get_const_tuple
         import tvm
         from plaidbench import core
         device = self.params.backend_opts['tvm_driver']
