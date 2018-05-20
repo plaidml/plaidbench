@@ -116,14 +116,18 @@ class Model(core.Model):
         import torch
         for _ in range(loops):
             self.model(*self.op.get_dataset(), cache=self.op.get_tc_cache())
-        torch.cuda.synchronize()
+            torch.cuda.synchronize()
 
 
     def run_pyt(self, loops):
         import torch
+        sw = core.StopWatch(False)
         for _ in range(loops):
+            sw.start()
             self.model(*self.op.get_dataset())
-        torch.cuda.synchronize()
+            torch.cuda.synchronize()
+            sw.stop()
+        return sw.elapsed()
     
 
     def run_tvm(self, loops):

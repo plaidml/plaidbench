@@ -15,6 +15,7 @@
 import math
 import numpy as np      
 import os
+import random
 
 from plaidbench.networks.ops import op
 
@@ -81,7 +82,7 @@ class Conv2d(op.Op):
         import torch
         # Initialize the variables (i.e. assign their default value)
         #torch.nn.Conv2d(in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True
-        _, W = self.get_dataset()
+        W = torch.randn(self.co, self.ci, self.i, self.j).cuda()
         conv = torch.nn.Conv2d(self.ci, self.co, (self.i, self.j), bias=False).cuda()
         conv.weights = W
         return lambda i, w: conv(i)
@@ -130,6 +131,6 @@ class Conv2d(op.Op):
             sw.start()
             for _ in range(loops):
                 op(i, w)
-            ctx.sync()
+                ctx.sync()
             sw.stop()
             return sw.elapsed()

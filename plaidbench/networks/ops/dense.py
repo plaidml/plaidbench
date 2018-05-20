@@ -89,7 +89,6 @@ class Dense(op.Op):
     def create_dataset_tvm(self):
         import tvm
         from topi.util import get_const_tuple
-        # TVM does not support batched matmul, so we fake it
         I = tvm.placeholder((self.bs * self.i, self.k), name='I')
         W = tvm.placeholder((self.j, self.k), name='W')
         B = tvm.placeholder((self.j,), name='B')
@@ -135,7 +134,7 @@ class Dense(op.Op):
                 sw.start()
                 for _ in range(loops):
                     op(i, w, b)
-                ctx.sync()
+                    ctx.sync()
                 sw.stop()
                 return sw.elapsed()
       
