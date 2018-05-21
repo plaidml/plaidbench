@@ -18,6 +18,7 @@ Files of interest are `frontend_ops.py`, `networks/ops/dense.py`, `networks/ops/
 pip install plaidml-keras
 <install TVM & Tensor Comprehensions>
 git clone https://github.com/plaidml/plaidbench
+cd plaidbench
 git checkout tensorcomp
 python setup.py install
 mkdir pbresults
