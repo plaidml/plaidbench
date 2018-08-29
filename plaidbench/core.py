@@ -30,7 +30,7 @@ class GoldenOutputNotAvailableError(Exception):
     pass
 
 
-class ExtrasNeeded(click.ClickException):
+class ExtrasNeeded(Exception):
 
     def __init__(self, extras):
         super(ExtrasNeeded, self).__init__(

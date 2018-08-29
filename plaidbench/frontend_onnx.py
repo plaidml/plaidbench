@@ -130,9 +130,12 @@ class Model(core.Model):
             examples = self.params.warmups
         else:
             examples = self.params.examples
+        if self.x.shape[0] < self.params.batch_size:
+            click.echo('WARNING: Batch size {} requested but only {} item(s) in data'.format(
+                self.params.batch_size, self.x.shape[0]))
         for i in range(examples // self.params.batch_size):
             partial_result = self.rep.run([self.x[:self.params.batch_size]])
-        return partial_result
+        return partial_result[0]
 
     def golden_output(self):
         try:
@@ -203,8 +206,8 @@ def cli(ctx, backend, cpu, use_cached_data, networks):
     runner = ctx.ensure_object(core.Runner)
     try:
         importlib.import_module(backend.module_name)
-    except ImportError:
-        six.raise_from(core.ExtrasNeeded(backend.requirements), None)
+    except ImportError as e:
+        six.raise_from(core.ExtrasNeeded(backend.requirements), e)
     if backend.is_plaidml:
         runner.reporter.configuration['plaid'] = plaidml.__version__
 
