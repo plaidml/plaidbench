@@ -7,9 +7,9 @@ exports_files([
 ])
 
 load("@bazel_tools//tools/build_defs/pkg:pkg.bzl", "pkg_tar")
-load("@vertexai_plaidml//bzl:conda.bzl", "conda_binary")
+load("@com_intel_plaidml//bzl:conda.bzl", "conda_binary")
 load(
-    "@vertexai_plaidml//bzl:plaidml.bzl",
+    "@com_intel_plaidml//bzl:plaidml.bzl",
     "plaidml_py_library",
     "plaidml_py_wheel",
 )
@@ -45,12 +45,12 @@ py_library(
 conda_binary(
     name = "bin",
     srcs = ["plaidbench.py"],
-    env = "@vertexai_plaidml_conda//:env",
+    env = "@com_intel_plaidml_conda//:env",
     main = "plaidbench.py",
     deps = [
         ":py",
-        "@vertexai_onnx_plaidml//:py",
-        "@vertexai_plaidml//plaidml/keras",
+        "@com_intel_onnx_plaidml//:py",
+        "@com_intel_plaidml//plaidml/keras",
     ],
 )
 

@@ -1,15 +1,15 @@
 # Copyright Vertex.AI.
 
-load("@vertexai_plaidml//bzl:conda.bzl", "conda_binary")
-load("@vertexai_plaidml//bzl:docs.bzl", "sphinx")
+load("@com_intel_plaidml//bzl:conda.bzl", "conda_binary")
+load("@com_intel_plaidml//bzl:docs.bzl", "sphinx")
 
 package(default_visibility = ["//visibility:public"])
 
 conda_binary(
     name = "sphinx",
-    srcs = ["@vertexai_plaidml//bzl:sphinx.py"],
-    env = "@vertexai_plaidml_conda_sphinx//:env",
-    deps = ["@vertexai_plaidbench//:py"],
+    srcs = ["@com_intel_plaidml//bzl:sphinx.py"],
+    env = "@com_intel_plaidml_conda_sphinx//:env",
+    deps = ["@com_intel_plaidbench//:py"],
 )
 
 sphinx(
