@@ -1,4 +1,4 @@
-# Copyright Vertex.AI.
+# Copyright 2018 Intel Corporation.
 
 load("@com_intel_plaidml//bzl:conda.bzl", "conda_binary")
 load("@com_intel_plaidml//bzl:docs.bzl", "sphinx")

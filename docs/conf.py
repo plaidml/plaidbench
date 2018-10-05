@@ -22,8 +22,8 @@ sys.path.insert(0, os.path.abspath(repo_root))
 # -- Project information -----------------------------------------------------
 
 project = u'plaidbench'
-copyright = u'2018, Vertex.AI'
-author = u'Vertex.AI'
+copyright = u'2018, Intel Corporation'
+author = u'Intel Corporation'
 
 # The short X.Y version
 version = u''
@@ -139,7 +139,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'plaidbench.tex', u'plaidbench Documentation', u'Vertex.AI', 'manual'),
+    (master_doc, 'plaidbench.tex', u'plaidbench Documentation', u'Intel Corporation', 'manual'),
 ]
 
 # -- Options for manual page output ------------------------------------------

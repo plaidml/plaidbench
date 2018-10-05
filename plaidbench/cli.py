@@ -1,4 +1,4 @@
-# Copyright 2018 Vertex.AI
+# Copyright 2018 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -77,7 +77,7 @@ class _PlaidbenchCommand(click.MultiCommand):
 @click.pass_context
 def plaidbench(ctx, verbose, examples, blanket_run, result, callgrind, epochs, batch_size, warmup,
                print_stacktraces):
-    """Vertex.AI Machine Learning Benchmarks
+    """Intel Corporation Machine Learning Benchmarks
     
     plaidbench runs benchmarks for a variety of ML framework, framework backend,
     and neural network combinations.

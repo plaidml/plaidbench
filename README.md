@@ -1,4 +1,4 @@
-# Vertex.AI Machine Learning Benchmarks
+# Intel Corporation Machine Learning Benchmarks
 
 Plaidbench measures the performance of machine-learning networks.
 
