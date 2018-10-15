@@ -5,7 +5,6 @@ environment:
   CONDA_PREFIX: C:\Miniconda36-x64
   PLAIDML_DEVICE_IDS: opencl_cpu.0
   PLAIDML_EXPERIMENTAL: 1
-  PLAIDML_TELEMETRY: 0
 
 install:
   - cmd: if not exist opencl_runtime_16.1.2_x64_setup.msi appveyor DownloadFile http://registrationcenter-download.intel.com/akdlm/irc_nas/12512/opencl_runtime_16.1.2_x64_setup.msi
