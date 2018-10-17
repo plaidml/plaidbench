@@ -19,7 +19,11 @@ from collections import namedtuple
 import enum
 import errno
 import json
+import plaidml
+import logging
+from multiprocessing import Process, Manager
 import os
+import signal
 import time
 
 import click
@@ -27,6 +31,9 @@ import numpy as np
 
 
 class GoldenOutputNotAvailableError(Exception):
+    pass
+
+class NoCorrectnessDesired(Exception):
     pass
 
 
@@ -95,7 +102,7 @@ class Output(object):
 
 
 class Params(
-        namedtuple('Params', ['batch_size', 'epochs', 'examples', 'warmups', 'network_name'])):
+        namedtuple('Params', ['batch_size', 'epochs', 'examples', 'warmups', 'network_name', 'backend_name', 'backend_opts'])):
     """Parameters applied to a network during benchmarking."""
     __slots__ = ()
 
@@ -110,30 +117,30 @@ class ExplicitParamBuilder(object):
     def __init__(self, batch_size, epochs, examples, warmups=32):
         if not examples:
             examples = 1024
-        self.params = Params(batch_size, epochs, examples, warmups, None)
+        self.params = Params(batch_size, epochs, examples, warmups, None, None,None)
 
-    def __call__(self, frontend, network_names):
+    def __call__(self, frontend, backend_name, network_names):
         if not network_names:
             raise click.UsageError('No networks specified; did you mean to add --blanket-run?')
         for network_name in network_names:
-            params = self.params._replace(network_name=network_name)
-            yield (frontend.model(params), params)
+            params = self.params._replace(network_name=network_name, backend_name=backend_name)
+            yield params
 
 
 class BlanketParamBuilder(object):
     """Builds Params for a blanket benchmark run."""
 
     def __init__(self, epochs):
-        self.params = Params(None, epochs, 256, 32, None)
+        self.params = Params(None, epochs, 256, 32, None, None, None)
 
-    def __call__(self, frontend, network_names):
+    def __call__(self, frontend, backend_name, network_names):
         if network_names:
             raise click.UsageError(
                 'Networks specified with --blanket-run; choose one or the other')
         for network_name in frontend.network_names:
             for batch_size in frontend.blanket_batch_sizes:
-                params = self.params._replace(network_name=network_name, batch_size=batch_size)
-                yield (frontend.model(params), params)
+                params = self.params._replace(network_name=network_name, batch_size=batch_size, backend_name=backend_name)
+                yield params
 
 
 class ConsoleReporter(object):
@@ -178,14 +185,16 @@ class BlanketReporter(object):
         self.result_dir = result_dir
         self.outputs = {}
         self.configuration = {}
-
-        self.configuration['plaid'] = None
+        self.configuration['frontend'] = None
+        self.configuration['backend'] = None
         self.configuration['train'] = False
         self.configuration['blanket_run'] = True
 
     def report(self, params, results, output):
-        composite_str = params.network_name + " : " + str(params.batch_size)
-        self.outputs[composite_str] = dict(results)
+        composite_str = ":".join([params.backend_name, params.network_name, str(params.batch_size)])
+        self.outputs[composite_str] = {
+            'results': dict(results)
+        }
 
     def complete(self):
         self.outputs['run_configuration'] = self.configuration
@@ -195,8 +204,138 @@ class BlanketReporter(object):
             if ex.errno != errno.EEXIST:
                 click.echo(ex)
                 return
-        with open(os.path.join(self.result_dir, 'report.json'), 'w') as out:
-            json.dump(self.outputs, out)
+        with open(os.path.join(self.result_dir, '{}-{}-report.json'.format(self.configuration['backend'], self.configuration['frontend'])), 'w') as out:
+            json.dump(self.outputs, out, sort_keys=True, indent=2)
+
+class ProgramTimeFilter(object):
+    def __init__(self):
+        self.tot_time_ns = 0
+        self.runs = 0
+    def filter(self, record):
+        msg = record.getMessage()
+        if "Total program execution duration:" in msg:
+            self.runs += 1
+            self.tot_time_ns += int(msg.split(' ')[-1])
+        return True
+
+
+def _inner_run(reports, frontend_name, frontend_init_args, network_names, params, warmup, callgrind, print_stacktraces):
+
+    import plaidbench.cli as pb
+    frontend_mod = pb._get_frontend_mod(frontend_name)
+    frontend = frontend_mod['Frontend'](*frontend_init_args)
+    model = frontend.model(params)
+    click.secho('Running {0} examples with {1}, batch size {2}, on backend {3}'.format(
+        params.examples, params.network_name, params.batch_size, params.backend_name), fg='magenta')
+
+    benchmark_results = {}
+    model_output = None
+
+    if params.examples % params.batch_size != 0:
+        raise ValueError('The number of examples must be divisible by the batch size.')
+    try:
+        model.validate()
+        model.setup()
+
+        stop_watch = StopWatch(callgrind)
+        compile_stop_watch = StopWatch(callgrind)
+
+        click.echo('Compiling network...', nl=False)
+        compile_stop_watch.start_outer()
+        stop_watch.start_outer()
+
+        model.compile()
+        model_output, overrides = model.run(once=True)
+
+        compile_stop_watch.stop()
+
+        # Run a few more warmups -- this seems to improve the variability of the
+        # benchmark results.
+        if warmup:
+            click.echo(' Warming up...', nl=False)
+            model.run(warmup=True)
+        click.echo(' Running...')
+
+        # Plaid currently doesn't make it easy to get at metrics,
+        # So we steal them from the logs
+        timef = ProgramTimeFilter()
+        og = logging.getLogger(plaidml.__name__)
+        plaidml._lib()._internal_set_vlog(1)
+        if og.level is logging.NOTSET:
+            plaidml.DEFAULT_LOG_HANDLER.setLevel(logging.WARNING)
+        og.setLevel(logging.DEBUG)
+        og.addFilter(timef)
+
+        stop_watch.start()
+        _, overrides = model.run()
+        stop_watch.stop()
+
+        og.removeFilter(timef)
+        # Record stopwatch times
+        execution_duration = overrides.get('time', stop_watch.elapsed())
+        tile_exec_per_example = timef.tot_time_ns / 10.0**9 / params.examples
+        exec_per_example = execution_duration / params.examples
+        compile_duration = compile_stop_watch.elapsed()
+        flops = overrides.get('flops', None)
+        gflops = None
+        if flops:
+            gflops = (flops/10.0**9/exec_per_example) 
+            benchmark_results['GFLOP/s'] = gflops
+            benchmark_results['flops'] = flops
+
+
+        benchmark_results['compile_duration'] = compile_duration
+        benchmark_results['duration_per_example'] = exec_per_example
+        benchmark_results['tile_duration_per_example'] = tile_exec_per_example
+        benchmark_results['examples'] = params.examples
+        benchmark_results['batch_size'] = params.batch_size
+        benchmark_results['model'] = params.network_name
+        benchmark_results['backend'] = params.backend_name
+
+        
+        resstr = 'Example finished, elapsed: {:.3f}s (compile), {:.3f}s (execution)\n'.format(compile_duration, execution_duration)
+        if gflops:
+            resstr += ', {:.2f} (GFLOP/s)'.format(gflops)
+        click.secho(resstr, fg='cyan', bold=True)
+        click.secho('Wall Clock / example: {:.6f}s (includes I/O per example)'.format(exec_per_example), fg='yellow')
+        click.secho('HW Time / example: {:.6f}s (excludes I/O, uses perf counters from driver - inaccurate for Metal)\n'.format(tile_exec_per_example), fg='yellow', bold=True)
+
+        (golden_output, precision) = model.golden_output()
+        (correct, max_error, max_abs_error, fail_ratio) = Runner._check_correctness(
+            golden_output, model_output, precision.value)
+        benchmark_results['correct'] = correct
+        benchmark_results['max_error'] = float(max_error)
+        benchmark_results['max_abs_error'] = float(max_abs_error)
+        benchmark_results['fail_ratio'] = fail_ratio
+        if correct:
+            status = 'PASS'
+        else:
+            status = 'FAIL'
+        click.secho(
+            'Correctness: {}, max_error: {}, max_abs_error: {}, fail_ratio: {}'.format(
+                status, max_error, max_abs_error, fail_ratio),
+                fg='green' if status == 'PASS' else 'red')
+    except GoldenOutputNotAvailableError:
+        click.echo(
+            'Correctness: untested. Could not find golden data to compare against.')
+    except NoCorrectnessDesired:
+        pass
+
+    # Error handling
+    except Exception as ex:
+        # click.echo statements
+        click.echo(ex)
+        click.echo('Set --print-stacktraces to see the entire traceback')
+
+        # Record error
+        benchmark_results['exception'] = str(ex)
+
+        if print_stacktraces:
+            raise
+
+    finally:
+        reports.append((params, benchmark_results, model_output))
+
 
 
 class Runner(object):
@@ -218,109 +357,45 @@ class Runner(object):
         self.print_stacktraces = False
         self.reporter = reporter
         self.warmup = True
-
-    def run(self, frontend, network_names):
+        self.timeout_secs = None
+    
+   
+    def run(self, frontend, backend_name, network_names):
         """Runs a set of benchmarks.
         
         Args:
             frontend (Frontend): The interface to the ML frontend.
             network_names ([str]): The names of the networks to benchmark.
         """
-        # Stopwatch and Output initialization
-        stop_watch = StopWatch(self.callgrind)
-        compile_stop_watch = StopWatch(self.callgrind)
-        exit_status = 0
+        self.reporter.configuration['frontend'] = frontend.name
+        self.reporter.configuration['backend'] = backend_name 
         self.reporter.configuration['example_size'] = self.param_builder.params.examples
+        manager = Manager()
+        reports = manager.list()
+        try:
+            for params in self.param_builder(frontend, backend_name, network_names):
+                    termwatch = StopWatch(False)
+                    #p = Process(target=foo, args=[frontend.name, frontend.init_args])
+                    p = Process(target=_inner_run, args=(reports, frontend.name, frontend.init_args, network_names, params, self.warmup, self.callgrind, self.print_stacktraces))
+                    termwatch.start()
+                    p.start()
+                    p.join(self.timeout_secs)
+                    termwatch.stop()
+                    if self.timeout_secs and termwatch.elapsed() > self.timeout_secs:
+                        if p.is_alive():
+                            os.kill(p.pid, signal.SIGKILL)
+                        reports.append((params, {'timeout': True}, None))
+                        click.secho("Timed out...", fg="red")
+        except KeyboardInterrupt:
+            manager.shutdown()
+            click.secho("Aborting all runs...", fg="red")
+        finally: 
+            # Reporter's gonna report
+            for report in reports:
+                self.reporter.report(*report)
 
-        for (model, params) in self.param_builder(frontend, network_names):
-            click.echo('Running {0} examples with {1}, batch size {2}'.format(
-                params.examples, params.network_name, params.batch_size))
-
-            benchmark_results = {}
-            model_output = None
-
-            try:
-                if params.examples % params.batch_size != 0:
-                    raise ValueError('The number of examples must be divisible by the batch size.')
-
-                model.validate()
-
-                model.setup()
-
-                click.echo('Compiling network...')
-                compile_stop_watch.start_outer()
-                stop_watch.start_outer()
-
-                model.compile()
-                model_output = model.run(once=True)
-
-                compile_stop_watch.stop()
-
-                # Run a few more warmups -- this seems to improve the variability of the
-                # benchmark results.
-                if self.warmup:
-                    click.echo('Warming up ...')
-                    model.run(warmup=True)
-
-                click.echo('Main timing')
-                stop_watch.start()
-                model.run()
-                stop_watch.stop()
-
-                # Record stopwatch times
-                execution_duration = stop_watch.elapsed()
-                compile_duration = compile_stop_watch.elapsed()
-
-                benchmark_results['compile_duration'] = compile_duration
-                benchmark_results['execution_duration'] = execution_duration / params.examples
-                benchmark_results['example_size'] = params.examples
-                benchmark_results['batch_size'] = params.batch_size
-                benchmark_results['model'] = params.network_name
-
-                click.echo(
-                    'Example finished, elapsed: {} (compile), {} (execution), {} (execution per example)'.
-                    format(compile_duration, execution_duration,
-                           execution_duration / params.examples))
-
-                try:
-                    (golden_output, precision) = model.golden_output()
-                    (correct, max_error, max_abs_error, fail_ratio) = self._check_correctness(
-                        golden_output, model_output, precision.value)
-                    benchmark_results['correct'] = correct
-                    benchmark_results['max_error'] = float(max_error)
-                    benchmark_results['max_abs_error'] = float(max_abs_error)
-                    benchmark_results['fail_ratio'] = fail_ratio
-                    if correct:
-                        status = 'PASS'
-                    else:
-                        status = 'FAIL'
-                    click.echo(
-                        'Correctness: {}, max_error: {}, max_abs_error: {}, fail_ratio: {}'.format(
-                            status, max_error, max_abs_error, fail_ratio))
-                except GoldenOutputNotAvailableError:
-                    click.echo(
-                        'Correctness: untested. Could not find golden data to compare against.')
-
-            # Error handling
-            except Exception as ex:
-                # click.echo statements
-                click.echo(ex)
-                click.echo('Set --print-stacktraces to see the entire traceback')
-
-                # Record error
-                benchmark_results['exception'] = str(ex)
-
-                # Set new exist status
-                exit_status = -1
-
-                # stacktrace loop
-                if self.print_stacktraces:
-                    raise
-
-            self.reporter.report(params, benchmark_results, model_output)
-
-        self.reporter.complete()
-        return exit_status
+            self.reporter.complete()
+        return 0
 
     @staticmethod
     def _check_correctness(base_output, cur_output, precision):
@@ -328,7 +403,7 @@ class Runner(object):
         correct = np.allclose(base_output, cur_output, rtol=precision, atol=1e-06)
         # This duplicates allclose calculation for more detailed report
         relative_error = ((precision * np.absolute(base_output - cur_output)) /
-                          (1e-06 + precision * np.absolute(cur_output)))
+                        (1e-06 + precision * np.absolute(cur_output)))
         max_error = np.amax(relative_error)
         max_abs_error = np.amax(np.absolute(base_output - cur_output))
         correct_entries = 0
@@ -351,7 +426,17 @@ class Frontend(object):
     __metaclass__ = ABCMeta
 
     def __init__(self, network_names):
-        self.network_names = network_names
+        # Need to POPT this for pickling for windows
+        self.network_names = list(network_names)
+        self.configuration = {}
+
+    @property
+    def name(self):
+        raise NotImplementedError()
+
+    @property
+    def init_args(self):
+        return (self.network_names,)
 
     @property
     def blanket_batch_sizes(self):

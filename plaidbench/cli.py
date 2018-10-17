@@ -32,23 +32,26 @@ def _find_frontends():
             result[fname[len(prefix):-len(suffix)]] = os.path.join(dirname, fname)
     return result
 
+_FRONTENDS = _find_frontends()
+
+def _get_frontend_mod(name):
+    try:
+        fname = _FRONTENDS[name]
+    except KeyError:
+        return None
+    mod = {'__file__': fname}
+    with open(fname) as f:
+        code = compile(f.read(), fname, 'exec')
+        eval(code, mod)
+    return mod
 
 class _PlaidbenchCommand(click.MultiCommand):
-    _FRONTENDS = _find_frontends()
 
     def list_commands(self, ctx):
-        return _PlaidbenchCommand._FRONTENDS.keys()
+        return _FRONTENDS.keys()
 
     def get_command(self, ctx, name):
-        try:
-            fname = _PlaidbenchCommand._FRONTENDS[name]
-        except KeyError:
-            return None
-        mod = {'__file__': fname}
-        with open(fname) as f:
-            code = compile(f.read(), fname, 'exec')
-            eval(code, mod)
-        return mod['cli']
+        return _get_frontend_mod(name)['cli']
 
 
 @click.command(cls=_PlaidbenchCommand)
@@ -61,7 +64,7 @@ class _PlaidbenchCommand(click.MultiCommand):
     help='Run all networks at a range of batch sizes, ignoring the --batch-size and --examples '
     'options and the choice of network.')
 @click.option(
-    '--result',
+    '--results',
     type=click.Path(exists=False, file_okay=False, dir_okay=True),
     default=os.path.join(tempfile.gettempdir(), 'plaidbench_results'),
     help='Destination directory for results output')
@@ -69,15 +72,16 @@ class _PlaidbenchCommand(click.MultiCommand):
     '--callgrind/--no-callgrind', default=False, help='Invoke callgrind during timing runs')
 @click.option('--epochs', type=int, default=1, help="Number of epochs per test")
 @click.option('--batch-size', type=int, default=1)
+@click.option('--timeout-secs', type=int, default=None)
 @click.option('--warmup/--no-warmup', default=True, help='Do warmup runs before main timing')
 @click.option(
     '--print-stacktraces/--no-print-stacktraces',
     default=False,
     help='Print a stack trace if an exception occurs')
 @click.pass_context
-def plaidbench(ctx, verbose, examples, blanket_run, result, callgrind, epochs, batch_size, warmup,
+def plaidbench(ctx, verbose, examples, blanket_run, results, callgrind, epochs, batch_size, timeout_secs, warmup,
                print_stacktraces):
-    """Intel Corporation Machine Learning Benchmarks
+    """PlaidML Machine Learning Benchmarks
     
     plaidbench runs benchmarks for a variety of ML framework, framework backend,
     and neural network combinations.
@@ -87,14 +91,15 @@ def plaidbench(ctx, verbose, examples, blanket_run, result, callgrind, epochs, b
     runner = ctx.ensure_object(core.Runner)
     if blanket_run:
         runner.param_builder = core.BlanketParamBuilder(epochs)
-        runner.reporter = core.BlanketReporter(result)
+        runner.reporter = core.BlanketReporter(os.path.expanduser(results))
         runner.reporter.configuration['train'] = False
     else:
         runner.param_builder = core.ExplicitParamBuilder(batch_size, epochs, examples)
-        runner.reporter = core.ExplicitReporter(result)
+        runner.reporter = core.ExplicitReporter(results)
     if verbose:
         plaidml._internal_set_vlog(verbose)
     runner.verbose = verbose
     runner.callgrind = callgrind
     runner.warmup = warmup
     runner.print_stacktraces = print_stacktraces
+    runner.timeout_secs = timeout_secs

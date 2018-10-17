@@ -130,12 +130,9 @@ class Model(core.Model):
             examples = self.params.warmups
         else:
             examples = self.params.examples
-        if self.x.shape[0] < self.params.batch_size:
-            click.echo('WARNING: Batch size {} requested but only {} item(s) in data'.format(
-                self.params.batch_size, self.x.shape[0]))
-        for i in range(examples // self.params.batch_size):
+        for _ in range(examples // self.params.batch_size):
             partial_result = self.rep.run([self.x[:self.params.batch_size]])
-        return partial_result[0]
+        return (partial_result, {})
 
     def golden_output(self):
         try:
@@ -164,15 +161,29 @@ class Frontend(core.Frontend):
         'vgg19',
     ]
 
-    def __init__(self, cpu, use_cached_data, backend_info, onnx):
+    def __init__(self, backend, cpu, use_cached_data, onnx):
         super(Frontend, self).__init__(Frontend.NETWORK_NAMES)
         self.cpu = cpu
         self.use_cached_data = use_cached_data
-        self.backend_info = backend_info
+        self.backend_info = backend
         self.onnx = onnx
+
+        try:
+            importlib.import_module(backend.module_name)
+        except ImportError:
+            six.raise_from(core.ExtrasNeeded(backend.requirements), None)
+        if backend.is_plaidml:
+            self.configuration['plaid'] = plaidml.__version__
+
+        onnx = importlib.import_module('onnx')
+        importlib.import_module('onnx.numpy_helper')
+
 
     def model(self, params):
         return Model(self, params)
+
+    def name(self):
+        return 'onnx'
 
 
 BackendInfo = namedtuple('BackendInfo',
@@ -204,15 +215,6 @@ BackendInfo = namedtuple('BackendInfo',
 def cli(ctx, backend, cpu, use_cached_data, networks):
     """Benchmarks ONNX models."""
     runner = ctx.ensure_object(core.Runner)
-    try:
-        importlib.import_module(backend.module_name)
-    except ImportError as e:
-        six.raise_from(core.ExtrasNeeded(backend.requirements), e)
-    if backend.is_plaidml:
-        runner.reporter.configuration['plaid'] = plaidml.__version__
-
-    onnx = importlib.import_module('onnx')
-    importlib.import_module('onnx.numpy_helper')
-
-    frontend = Frontend(cpu, use_cached_data, backend, onnx)
-    return runner.run(frontend, networks)
+    
+    frontend = Frontend(backend, cpu, use_cached_data, onnx)
+    return runner.run(frontend, backend, networks)

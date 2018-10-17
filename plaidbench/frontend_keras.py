@@ -22,7 +22,6 @@ import plaidml
 
 from plaidbench import core
 
-
 def setup_cifar(train, epoch_size):
     # Setup
     if train:
@@ -85,7 +84,7 @@ class Model(core.Model):
         build_model_kwargs = dict()
         filename = '{}.py'.format(self.params.network_name)
         module_path = os.path.join(this_dir, 'networks', 'keras', filename)
-        mod = {'__file__': __file__, '_backend_name': self.frontend.backend_name}
+        mod = {'__file__': __file__, '_backend_name': self.params.backend_name}
         with open(module_path) as f:
             code = compile(f.read(), module_path, 'exec')
             eval(code, mod)
@@ -125,7 +124,7 @@ class InferenceModel(Model):
             epoch_size = self.params.warmups
         else:
             epoch_size = self.params.epoch_size
-        return self.model.predict(x=self.x[:epoch_size], batch_size=self.params.batch_size)
+        return (self.model.predict(x=self.x[:epoch_size], batch_size=self.params.batch_size), {})
 
     def golden_output(self):
         return (self.keras_golden_output('infer'), core.Precision.INFERENCE)
@@ -165,7 +164,7 @@ class TrainingModel(Model):
             epochs=epochs,
             shuffle=False,
             initial_epoch=0)
-        return np.array(history.history['loss'])
+        return (np.array(history.history['loss']))
 
     def golden_output(self):
         return (self.keras_golden_output('train'), core.Precision.TRAINING)
@@ -188,9 +187,24 @@ class Frontend(core.Frontend):
         'imdb_lstm',
     ]
 
-    def __init__(self, backend_name, fp16, train):
+    def __init__(self, backend, fp16, train):
         super(Frontend, self).__init__(Frontend.NETWORK_NAMES)
-        self.backend_name = backend_name
+        self.backend = backend
+        if backend == 'plaid':
+            try:
+                self.configuration['plaid'] = importlib.import_module('plaidml').__version__
+                importlib.import_module('plaidml.keras').install_backend()
+            except ImportError:
+                raise core.ExtrasNeeded(['plaidml-keras'])
+        elif backend == 'tensorflow':
+            try:
+                importlib.import_module('keras.backend')
+            except ImportError:
+                raise core.ExtrasNeeded(['keras', 'tensorflow'])
+        if fp16:
+            importlib.import_module('keras.backend').set_floatx('float16')
+        if train:
+            self.configuration['train'] = True
         self.fp16 = fp16
         self.train = train
 
@@ -198,6 +212,14 @@ class Frontend(core.Frontend):
         if self.train:
             return TrainingModel(self, params)
         return InferenceModel(self, params)
+    
+    @property
+    def name(self):
+        return "keras"
+    
+    @property
+    def init_args(self):
+        return (self.backend, self.fp16, self.train)
 
     @property
     def blanket_batch_sizes(self):
@@ -221,20 +243,4 @@ def cli(ctx, backend, fp16, train, networks):
     """Benchmarks Keras neural networks."""
     runner = ctx.ensure_object(core.Runner)
     frontend = Frontend(backend, fp16, train)
-    if backend == 'plaid':
-        try:
-            runner.reporter.configuration['plaid'] = importlib.import_module('plaidml').__version__
-            importlib.import_module('plaidml.keras').install_backend()
-        except ImportError:
-            raise core.ExtrasNeeded(['plaidml-keras'])
-    elif backend == 'tensorflow':
-        try:
-            importlib.import_module('keras.backend')
-        except ImportError:
-            raise core.ExtrasNeeded(['keras', 'tensorflow'])
-
-    if fp16:
-        importlib.import_module('keras.backend').set_floatx('float16')
-    if train:
-        runner.reporter.configuration['train'] = True
-    return runner.run(frontend, networks)
+    return runner.run(frontend, backend, networks)

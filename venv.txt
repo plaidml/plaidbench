@@ -1,0 +1,13 @@
+# These versions are pinned to those that live on lab-01 under /var/www/pypi
+# If you want to update these versions, you'll have to manually build the wheels
+# for armv7l and place them on lab-01.
+click>=6.0.0
+enum34>=1.1.6
+h5py>=2.7.0
+keras==2.0.8
+onnx==1.1.1; platform_machine != 'armv7l' and platform_system == 'Linux'
+onnx-tf==1.0; platform_machine != 'armv7l' and platform_system == 'Linux'
+numpy==1.13.3
+requests==2.18.4
+scipy==1.0.0
+tensorflow-gpu==1.3.0; platform_machine != 'armv7l' and platform_system == 'Linux'
