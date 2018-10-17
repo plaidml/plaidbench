@@ -297,8 +297,11 @@ def _inner_run(reports, frontend_name, frontend_init_args, network_names, params
         if gflops:
             resstr += ', {:.2f} (GFLOP/s)'.format(gflops)
         click.secho(resstr, fg='cyan', bold=True)
-        click.secho('Wall Clock / example: {:.6f}s (includes I/O per example)'.format(exec_per_example), fg='yellow')
-        click.secho('HW Time / example: {:.6f}s (excludes I/O, uses perf counters from driver - inaccurate for Metal)\n'.format(tile_exec_per_example), fg='yellow', bold=True)
+        click.secho("Mean inference time may be inaccurate for the Metal backend!", fg='red')
+        print("-----------------------------------------------------------------------------------------")
+        print("%-20s %-25s %-20s" % ("Network Name", "Inference Latency", "Mean Inference Time"))
+        print("-----------------------------------------------------------------------------------------")
+        print("%-20s %-25s %-20s" % (params.network_name, "%.2f ms" % (exec_per_example * 1000), "%.2f ms" % (tile_exec_per_example * 1000)))
 
         (golden_output, precision) = model.golden_output()
         (correct, max_error, max_abs_error, fail_ratio) = Runner._check_correctness(
