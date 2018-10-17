@@ -164,7 +164,7 @@ class TrainingModel(Model):
             epochs=epochs,
             shuffle=False,
             initial_epoch=0)
-        return (np.array(history.history['loss']))
+        return (np.array(history.history['loss']), {})
 
     def golden_output(self):
         return (self.keras_golden_output('train'), core.Precision.TRAINING)

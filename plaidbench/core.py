@@ -19,7 +19,6 @@ from collections import namedtuple
 import enum
 import errno
 import json
-import plaidml
 import logging
 from multiprocessing import Process, Manager
 import os
@@ -28,6 +27,7 @@ import time
 
 import click
 import numpy as np
+import plaidml
 
 
 class GoldenOutputNotAvailableError(Exception):
