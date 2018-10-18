@@ -124,7 +124,12 @@ class InferenceModel(Model):
             epoch_size = self.params.warmups
         else:
             epoch_size = self.params.epoch_size
-        return (self.model.predict(x=self.x[:epoch_size], batch_size=self.params.batch_size), {})
+        out = self.model.predict(x=self.x[:epoch_size], batch_size=self.params.batch_size), 
+        # Hack to ensure eventlog gets written
+        if not once and not warmup:
+            import keras.backend as b
+            b._ctx.shutdown()
+        return (out, {})
 
     def golden_output(self):
         return (self.keras_golden_output('infer'), core.Precision.INFERENCE)

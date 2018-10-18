@@ -220,7 +220,6 @@ class ProgramTimeFilter(object):
 
 
 def _inner_run(reports, frontend_name, frontend_init_args, network_names, params, warmup, callgrind, print_stacktraces):
-
     import plaidbench.cli as pb
     frontend_mod = pb._get_frontend_mod(frontend_name)
     frontend = frontend_mod['Frontend'](*frontend_init_args)
