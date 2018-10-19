@@ -264,6 +264,7 @@ def _inner_run(reports, frontend_name, frontend_init_args, network_names, params
             plaidml.DEFAULT_LOG_HANDLER.setLevel(logging.WARNING)
         og.setLevel(logging.DEBUG)
         og.addFilter(timef)
+        
 
         stop_watch.start()
         _, overrides = model.run()
@@ -296,11 +297,12 @@ def _inner_run(reports, frontend_name, frontend_init_args, network_names, params
         if gflops:
             resstr += ', {:.2f} (GFLOP/s)'.format(gflops)
         click.secho(resstr, fg='cyan', bold=True)
-        click.secho("Mean inference time may be inaccurate for the Metal backend!", fg='red')
+        if 'metal' in str(plaidml.devices(plaidml.Context())[0]):
+            click.secho("Time / FPS inaccurate for the Metal backend!", fg='red')
         print("-----------------------------------------------------------------------------------------")
-        print("%-20s %-25s %-20s" % ("Network Name", "Inference Latency", "Mean Inference Time"))
+        print("%-20s %-25s %-20s" % ("Network Name", "Inference Latency", "Time / FPS"))
         print("-----------------------------------------------------------------------------------------")
-        print("%-20s %-25s %-20s" % (params.network_name, "%.2f ms" % (exec_per_example * 1000), "%.2f ms" % (tile_exec_per_example * 1000)))
+        print("%-20s %-25s %-20s" % (params.network_name, "%.2f ms" % (exec_per_example * 1000), "%.2f ms / %.2f fps" % (tile_exec_per_example * 1000, 1.0 / tile_exec_per_example)))
 
         (golden_output, precision) = model.golden_output()
         (correct, max_error, max_abs_error, fail_ratio) = Runner._check_correctness(
