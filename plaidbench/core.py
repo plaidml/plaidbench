@@ -213,7 +213,7 @@ class ProgramTimeFilter(object):
         self.runs = 0
     def filter(self, record):
         msg = record.getMessage()
-        if "Total program execution duration:" in msg:
+        if msg.startswith("Total program execution duration:"):
             self.runs += 1
             self.tot_time_ns += int(msg.split(' ')[-1])
         return True
@@ -261,10 +261,10 @@ def _inner_run(reports, frontend_name, frontend_init_args, network_names, params
         og = logging.getLogger(plaidml.__name__)
         plaidml._lib()._internal_set_vlog(1)
         if og.level is logging.NOTSET:
-            plaidml.DEFAULT_LOG_HANDLER.setLevel(logging.WARNING)
+           plaidml.DEFAULT_LOG_HANDLER.setLevel(logging.WARNING)
         og.setLevel(logging.DEBUG)
         og.addFilter(timef)
-        
+
 
         stop_watch.start()
         _, overrides = model.run()
@@ -273,7 +273,7 @@ def _inner_run(reports, frontend_name, frontend_init_args, network_names, params
         og.removeFilter(timef)
         # Record stopwatch times
         execution_duration = overrides.get('time', stop_watch.elapsed())
-        tile_exec_per_example = timef.tot_time_ns / 10.0**9 / params.examples
+        tile_exec_per_example = 1e-9 + timef.tot_time_ns / 10.0**9 / params.examples
         exec_per_example = execution_duration / params.examples
         compile_duration = compile_stop_watch.elapsed()
         flops = overrides.get('flops', None)
