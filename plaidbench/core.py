@@ -219,7 +219,7 @@ class ProgramTimeFilter(object):
         return True
 
 
-def _inner_run(reports, frontend_name, frontend_init_args, network_names, params, warmup, callgrind, print_stacktraces):
+def _inner_run(reports, frontend_name, frontend_init_args, network_names, params, warmup, kernel_timing, callgrind, print_stacktraces):
     import plaidbench.cli as pb
     frontend_mod = pb._get_frontend_mod(frontend_name)
     frontend = frontend_mod['Frontend'](*frontend_init_args)
@@ -259,10 +259,11 @@ def _inner_run(reports, frontend_name, frontend_init_args, network_names, params
         # So we steal them from the logs
         timef = ProgramTimeFilter()
         og = logging.getLogger(plaidml.__name__)
-        plaidml._lib()._internal_set_vlog(1)
-        if og.level is logging.NOTSET:
-           plaidml.DEFAULT_LOG_HANDLER.setLevel(logging.WARNING)
-        og.setLevel(logging.DEBUG)
+        if kernel_timing:
+            plaidml._lib()._internal_set_vlog(1)
+            if og.level is logging.NOTSET:
+                plaidml.DEFAULT_LOG_HANDLER.setLevel(logging.WARNING)
+            og.setLevel(logging.DEBUG)
         og.addFilter(timef)
 
 
@@ -361,6 +362,7 @@ class Runner(object):
         self.print_stacktraces = False
         self.reporter = reporter
         self.warmup = True
+        self.kernel_timing = True
         self.timeout_secs = None
     
    
@@ -380,7 +382,7 @@ class Runner(object):
             for params in self.param_builder(frontend, backend_name, network_names):
                     termwatch = StopWatch(False)
                     #p = Process(target=foo, args=[frontend.name, frontend.init_args])
-                    p = Process(target=_inner_run, args=(reports, frontend.name, frontend.init_args, network_names, params, self.warmup, self.callgrind, self.print_stacktraces))
+                    p = Process(target=_inner_run, args=(reports, frontend.name, frontend.init_args, network_names, params, self.warmup, self.kernel_timing, self.callgrind, self.print_stacktraces))
                     termwatch.start()
                     p.start()
                     p.join(self.timeout_secs)

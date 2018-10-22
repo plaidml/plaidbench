@@ -74,13 +74,14 @@ class _PlaidbenchCommand(click.MultiCommand):
 @click.option('--batch-size', type=int, default=1)
 @click.option('--timeout-secs', type=int, default=None)
 @click.option('--warmup/--no-warmup', default=True, help='Do warmup runs before main timing')
+@click.option('--kernel-timing/--no-kernel-timing', default=True, help='Emit kernel timing info')
 @click.option(
     '--print-stacktraces/--no-print-stacktraces',
     default=False,
     help='Print a stack trace if an exception occurs')
 @click.pass_context
 def plaidbench(ctx, verbose, examples, blanket_run, results, callgrind, epochs, batch_size, timeout_secs, warmup,
-               print_stacktraces):
+               print_stacktraces, kernel_timing):
     """PlaidML Machine Learning Benchmarks
     
     plaidbench runs benchmarks for a variety of ML framework, framework backend,
@@ -101,5 +102,6 @@ def plaidbench(ctx, verbose, examples, blanket_run, results, callgrind, epochs, 
     runner.verbose = verbose
     runner.callgrind = callgrind
     runner.warmup = warmup
+    runner.kernel_timing = kernel_timing
     runner.print_stacktraces = print_stacktraces
     runner.timeout_secs = timeout_secs

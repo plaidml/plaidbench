@@ -74,6 +74,7 @@ def make_parser():
     parser.add_argument(
         '--callgrind', action='store_true', help="Invoke callgrind during timing runs.")
     parser.add_argument('--no-warmup', action='store_true', help="Skip the warmup runs.")
+    parser.add_argument('--no-kernel-timing', action='store_true', help="Skip the warmup runs.")
     parser.add_argument(
         '-n', '--examples', type=int, default=None, help="Number of examples to use.")
     parser.add_argument('--epochs', type=int, default=1, help="Number of epochs per test.")
@@ -124,6 +125,8 @@ def main():
         argv.append('--blanket-run')
     if args.no_warmup:
         argv.append('--no-warmup')
+    if args.no_kernel_timing:
+        argv.append('--no-kernel-timing')
     if args.print_stacktraces:
         argv.append('--print-stacktraces')
 
