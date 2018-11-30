@@ -161,12 +161,11 @@ class Frontend(core.Frontend):
         'vgg19',
     ]
 
-    def __init__(self, backend, cpu, use_cached_data, onnx):
+    def __init__(self, backend, cpu, use_cached_data):
         super(Frontend, self).__init__(Frontend.NETWORK_NAMES)
         self.cpu = cpu
         self.use_cached_data = use_cached_data
         self.backend_info = backend
-        self.onnx = onnx
 
         try:
             importlib.import_module(backend.module_name)
@@ -175,7 +174,7 @@ class Frontend(core.Frontend):
         if backend.is_plaidml:
             self.configuration['plaid'] = plaidml.__version__
 
-        onnx = importlib.import_module('onnx')
+        self.onnx = importlib.import_module('onnx')
         importlib.import_module('onnx.numpy_helper')
 
 
@@ -216,5 +215,5 @@ def cli(ctx, backend, cpu, use_cached_data, networks):
     """Benchmarks ONNX models."""
     runner = ctx.ensure_object(core.Runner)
     
-    frontend = Frontend(backend, cpu, use_cached_data, onnx)
+    frontend = Frontend(backend, cpu, use_cached_data)
     return runner.run(frontend, backend, networks)

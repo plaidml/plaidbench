@@ -231,11 +231,9 @@ class ProgramTimeFilter(object):
         return True
 
 
-def _inner_run(reports, frontend_name, frontend_init_args, network_names, params, warmup,
+def _inner_run(reports, frontend, network_names, params, warmup,
                kernel_timing, callgrind, print_stacktraces):
     import plaidbench.cli as pb
-    frontend_mod = pb._get_frontend_mod(frontend_name)
-    frontend = frontend_mod['Frontend'](*frontend_init_args)
     model = frontend.model(params)
     click.secho(
         'Running {0} examples with {1}, batch size {2}, on backend {3}'.format(
@@ -395,7 +393,7 @@ class Runner(object):
         reports = []
         try:
             for params in self.param_builder(frontend, backend_name, network_names):
-                _inner_run(reports, frontend.name, frontend.init_args, network_names, params,
+                _inner_run(reports, frontend, network_names, params,
                            self.warmup, self.kernel_timing, self.callgrind, self.print_stacktraces)
         except KeyboardInterrupt:
             click.secho("Aborting all runs...", fg="red")
