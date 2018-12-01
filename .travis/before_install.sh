@@ -16,7 +16,7 @@ if [ "$TRAVIS_OS_NAME" == "linux" ]; then
   # TODO: Consider using beignet, since it can be installed from apt.
   ocl_dir="$HOME/.cache/ocl"
   mkdir -p "$ocl_dir"
-  wget -qO- https://storage.googleapis.com/external_build_repo/opencl_runtime_16.1.1_x64_ubuntu_6.4.0.25.tgz | tar -xz -C $ocl_dir --strip-components 1
+  wget -qO- https://storage.googleapis.com/external_build_repo/opencl_runtime_16.1.2_x64_rh_6.4.0.37.tgz | tar -xz -C $ocl_dir --strip-components 1
   silent_file="$(pwd)/.intel-ocl-silent"
   cd $ocl_dir && sudo ./install.sh --cli-mode --silent $silent_file && cd -
 

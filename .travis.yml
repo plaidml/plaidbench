@@ -3,12 +3,12 @@ language: python
 matrix:
   include:
     - os: linux
-      dist: trusty
+      dist: xenial 
       sudo: required
       python: "3.6"
       env: PYTHON=python PIP=pip
     - os: linux
-      dist: trusty
+      dist: xenial
       sudo: required
       python: "2.7"
       env: PYTHON=python PIP=pip
@@ -32,11 +32,11 @@ install:
   - $PIP install -r requirements.txt
 
 before_script:
-  - $PYTHON setup.py install
+  - $PYTHON setup.py install --force
 
 script:
-  - plaidbench keras mobilenet
-  - plaidbench onnx squeezenet
+  - plaidbench -n 128 keras mobilenet
+  - plaidbench -n 128 onnx squeezenet
 
 cache:
   - pip

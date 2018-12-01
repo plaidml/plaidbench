@@ -15,12 +15,12 @@ install:
   - cmd: pip install plaidml-keras onnx-plaidml
 
 build_script:
-  - cmd: python setup.py install
+  - cmd: rm BUILD && python setup.py install --force
 
 test_script:
   - cmd: cd C:\projects
-  - cmd: plaidbench keras mobilenet
-  - cmd: plaidbench onnx squeezenet
+  - cmd: plaidbench -n 128 keras mobilenet
+  - cmd: plaidbench -n 128 onnx squeezenet
 
 cache:
   - opencl_runtime_16.1.2_x64_setup.msi
