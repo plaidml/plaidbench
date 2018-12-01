@@ -32,7 +32,7 @@ install:
   - $PIP install -r requirements.txt
 
 before_script:
-  - $PYTHON setup.py install --force
+  - rm BUILD && $PYTHON setup.py install
 
 script:
   - plaidbench -n 128 keras mobilenet
